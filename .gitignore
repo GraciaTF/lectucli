@@ -1,0 +1,10 @@
+# Entorno virtual que crea uv (se regenera con: uv sync)
+.venv/
+
+# Cachés de Python
+__pycache__/
+*.egg-info
+dist/
+
+# Secretos: claves de API y configuración privada. NUNCA al repo.
+.env
