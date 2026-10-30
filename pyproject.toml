@@ -1,7 +1,7 @@
 [project]
-name = "tareas"
+name = "lectucli"
 version = "0.1.0"
-description = "Automatiza tareas repetitivas con ficheros desde la terminal"
+description = "Gestiona y organiza lecturas para actividades de aula desde la terminal"
 readme = "README.md"
 authors = [
     { name = "GraciaTF", email = "235654310+GraciaTF@users.noreply.github.com" }
@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-tareas = "tareas.cli:app"
+lectucli = "lectucli.cli:app"
 
 [build-system]
 requires = ["uv_build>=0.13.6,<0.14.0"]
