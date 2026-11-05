@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "acciones": [
+    {
+      "nombre": "anyadir-lectura",
+      "descripcion": "Copia una lectura de otra carpeta a la carpeta ~/lecturas",
+      "tipo": "copiar",
+      "filtro": { "extensiones": [".pdf", ".docx", ".odt", ".txt"] },
+      "destino": "~/lecturas"
+    }
+  ]
+}

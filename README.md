@@ -24,3 +24,34 @@ Facilitar la organización, búsqueda, creación y gestión de lecturas para tra
 8. **Plataformas:** Linux primero; también Windows y macOS.
 9. **Códigos de salida:** 0 bien · 1 fallo al ejecutar · 2 uso incorrecto · 3 configuración inválida.
 10. **Instalación:** `uv tool install --editable .` (lo completo en la semana 4).
+
+
+## Esquema de acciones.json ##
+
+acciones.json contiene la configuración de las acciones que puede ejecutar lectucli.
+
+| Campo | Descripción |
+|---|---|
+| `version` | Versión del esquema de configuración. |
+| `acciones` | Lista de acciones definidas. |
+| `nombre` | Nombre único de la acción. |
+| `descripcion` | Explicación de lo que hace la acción. |
+| `tipo` | Operación que realizará: mover, copiar, renombrar o borrar. |
+| `origen` | Carpeta de origen. Opcional si se proporciona al ejecutar la acción. |
+| `filtro` | Criterios para seleccionar los archivos. |
+| `destino` | Carpeta donde se copiarán o moverán los archivos. |
+| `plantilla` | Plantilla para generar nombres nuevos al renombrar. |
+| `confirmar` | Indica si se requiere confirmación antes de borrar. |
+
+
+Filtros disponibles:
+- extensiones: extensiones permitidas.
+- patron: expresión regular para filtrar nombres.
+- mas_antiguo_que_dias: antigüedad mínima en días.
+- mayor_que_mb: tamaño mínimo en MB.
+
+Plantillas de renombrado:
+- {fecha:%Y-%m-%d}: fecha de modificación.
+- {n:03}: contador con tres cifras.
+- {ext}: extensión original.
+- {nombre}: nombre original sin extensión.
