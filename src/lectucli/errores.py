@@ -18,7 +18,7 @@ class ConfigError(LectucliError):
     codigo_salida = 3
 
 
-class AccionNoValida(LectucliError):
+class AccionNoValida(ConfigError):
     """Una acción concreta de acciones.json incumple el esquema."""
 
     codigo_salida = 3

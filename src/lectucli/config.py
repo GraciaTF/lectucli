@@ -64,8 +64,8 @@ def cargar(ruta: str | pathlib.Path) -> list[dict]:
 
     if "acciones" not in datos:
         raise ConfigError(f"El fichero «{fichero}» no contiene el campo «acciones»")
-    if not isinstance(datos["acciones"], list):
-        raise ConfigError(f"El campo «acciones» debe ser una lista de acciones")
+    if not isinstance(datos["acciones"], list) or not datos["acciones"]:
+        raise ConfigError("Falta la lista «acciones» o está vacía")
 
     return datos["acciones"]
 
