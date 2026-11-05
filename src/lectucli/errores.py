@@ -6,24 +6,19 @@ fallo de ejecución (1) de una configuración inválida (3).
 
 from __future__ import annotations
 
-
-class TareasError(Exception):
+class LectucliError(Exception):
     """Error base de lectucli."""
 
     codigo_salida = 1
 
 
-# Alias para mantener la compatibilidad con las referencias existentes (cli.py).
-LectucliError = TareasError
-
-
-class ConfigError(TareasError):
+class ConfigError(LectucliError):
     """El fichero acciones.json no se puede leer o no sigue el esquema."""
 
     codigo_salida = 3
 
 
-class AccionNoValida(TareasError):
+class AccionNoValida(LectucliError):
     """Una acción concreta de acciones.json incumple el esquema."""
 
     codigo_salida = 3
