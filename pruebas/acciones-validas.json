@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "acciones": [
+    {
+      "nombre": "renombrar-lecturas",
+      "descripcion": "Renombrar lecturas con el formato oficial",
+      "tipo": "renombrar",
+      "plantilla": "{fecha:%Y-%m-%d}-{n:03}-{nombre}{ext}"
+    },
+    {
+      "nombre": "organizar-pdf",
+      "descripcion": "Copia los PDFs grandes a la carpeta de trabajo",
+      "tipo": "copiar",
+      "destino": "pruebas/salida",
+      "filtro": { "extensiones": [".pdf"], "mayor_que_mb": 1, "mas_antiguo_que_dias": 7 }
+    }
+  ]
+}

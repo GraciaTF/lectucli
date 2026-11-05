@@ -1,4 +1,6 @@
+import io
 import pathlib
+import sys
 from datetime import datetime
 
 import typer
@@ -6,7 +8,8 @@ from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
 
-from lectucli import __version__
+from lectucli import __version__, config
+from lectucli.errores import LectucliError
 
 app = typer.Typer(
     name="lectucli",
@@ -15,8 +18,34 @@ app = typer.Typer(
     pretty_exceptions_show_locals=False,
 )
 
+
+def _asegurar_utf8(flujo: io.TextIOBase) -> None:
+    """Pasa la salida a UTF-8 si la codificación no admite «✔» ni «✘».
+
+    Algunas terminales de Windows usan cp1252 y no pueden imprimir esos
+    símbolos. Solo se cambia cuando hace falta: si la codificación ya
+    funciona (Linux, macOS y consolas de Windows) no se toca nada.
+    """
+    codificacion = flujo.encoding or "utf-8"
+    try:
+        "✔✘".encode(codificacion)
+        return
+    except (LookupError, UnicodeEncodeError):
+        pass
+
+    try:
+        flujo.flush()
+        flujo.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, OSError, ValueError):
+        # Si el flujo no se puede reconfigurar, se deja como está.
+        pass
+
+
 console = Console()
 consola_error = Console(stderr=True)
+
+_asegurar_utf8(sys.stdout)
+_asegurar_utf8(sys.stderr)
 
 
 def _tamano_legible(tamano_bytes: int) -> str:
@@ -85,3 +114,32 @@ def listar(carpeta: pathlib.Path = typer.Argument(pathlib.Path("."), help="Ruta 
         tabla.add_row(nombre, tipo, tamaño, modificado)
 
     console.print(tabla)
+
+
+@app.command()
+def validar(
+    ruta: pathlib.Path = typer.Option(
+        pathlib.Path("acciones.json"),
+        "--ruta",
+        "-r",
+        help="Ruta del fichero acciones.json (por defecto: ./acciones.json).",
+    ),
+) -> None:
+    """Comprueba que acciones.json cumple el esquema antes de ejecutar acciones.
+
+    Muestra todos los errores encontrados (no solo el primero) y termina con
+    código 3 (configuración inválida) si el fichero no es válido.
+    """
+    try:
+        acciones = config.cargar(ruta)
+        errores = config.validar(acciones)
+    except LectucliError as exc:
+        consola_error.print(f"✘ {exc}", style="red", markup=False)
+        raise typer.Exit(code=exc.codigo_salida) from None
+
+    if errores:
+        for error in errores:
+            consola_error.print(f"✘ {error}", style="red", markup=False)
+        raise typer.Exit(code=errores[0].codigo_salida)
+
+    console.print(f"✔ {len(acciones)} acciones válidas", style="green")
