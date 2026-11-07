@@ -7,9 +7,12 @@ import typer
 from rich.console import Console
 from rich.markup import escape
 from rich.table import Table
+from rich.text import Text
 
 from lectucli import __version__, config
+from lectucli.acciones import Accion, Estado
 from lectucli.errores import LectucliError
+from lectucli.motor import Motor
 
 app = typer.Typer(
     name="lectucli",
@@ -55,6 +58,48 @@ def _tamano_legible(tamano_bytes: int) -> str:
             return f"{tamano_bytes:.0f} {unidad}"
         tamano_bytes /= 1024
     return f"{tamano_bytes:.1f} PB"
+
+
+@app.callback()
+def principal(
+    ctx: typer.Context,
+    config_ruta: pathlib.Path = typer.Option(
+        pathlib.Path("acciones.json"),
+        "--config",
+        help="Ruta del fichero de configuración (por defecto: ./acciones.json).",
+    ),
+) -> None:
+    """Guarda la configuración global para todas las órdenes."""
+    ctx.obj = config_ruta
+
+
+def _ruta_config(ctx: typer.Context) -> pathlib.Path:
+    """Ruta de la configuración: la opción --config o ./acciones.json."""
+    if isinstance(ctx.obj, pathlib.Path):
+        return ctx.obj
+    return pathlib.Path("acciones.json")
+
+
+def _cargar_config(ruta: pathlib.Path) -> list[dict]:
+    """Carga y valida la configuración, y sale si tiene errores.
+
+    Muestra en rojo los errores previsibles (con su código de salida:
+    3 para ConfigError) y devuelve la lista de acciones cuando todo es
+    correcto. No muestra trazas.
+    """
+    try:
+        acciones = config.cargar(ruta)
+    except LectucliError as exc:
+        consola_error.print(f"✘ {exc}", style="red", markup=False)
+        raise typer.Exit(code=exc.codigo_salida) from None
+
+    errores = config.validar(acciones)
+    if errores:
+        for error in errores:
+            consola_error.print(f"✘ {error}", style="red", markup=False)
+        raise typer.Exit(code=errores[0].codigo_salida)
+
+    return acciones
 
 
 @app.command()
@@ -118,28 +163,140 @@ def listar(carpeta: pathlib.Path = typer.Argument(pathlib.Path("."), help="Ruta 
 
 @app.command()
 def validar(
-    ruta: pathlib.Path = typer.Option(
-        pathlib.Path("acciones.json"),
+    ctx: typer.Context,
+    ruta: pathlib.Path | None = typer.Option(
+        None,
         "--ruta",
         "-r",
-        help="Ruta del fichero acciones.json (por defecto: ./acciones.json).",
+        help="Ruta del fichero de configuración (por defecto: la de --config o ./acciones.json).",
     ),
 ) -> None:
-    """Comprueba que acciones.json cumple el esquema antes de ejecutar acciones.
+    """Comprueba que la configuración cumple el esquema antes de ejecutar acciones.
 
     Muestra todos los errores encontrados (no solo el primero) y termina con
     código 3 (configuración inválida) si el fichero no es válido.
     """
+    if ruta is None:
+        ruta = _ruta_config(ctx)
+    acciones = _cargar_config(ruta)
+    console.print(f"✔ {len(acciones)} acciones válidas", style="green")
+
+
+@app.command()
+def acciones(ctx: typer.Context) -> None:
+    """Muestra las acciones definidas en la configuración."""
+    ruta = _ruta_config(ctx)
+    datos = _cargar_config(ruta)
+
+    tabla = Table(title=f"Acciones de {ruta.name}")
+    tabla.add_column("Nombre")
+    tabla.add_column("Tipo")
+    tabla.add_column("Descripción")
+
+    for accion in datos:
+        tabla.add_row(
+            escape(str(accion["nombre"])),
+            escape(str(accion["tipo"])),
+            escape(str(accion["descripcion"])),
+        )
+
+    console.print(tabla)
+
+
+@app.command()
+def ejecutar(
+    ctx: typer.Context,
+    nombre: str = typer.Argument(
+        ...,
+        help="Nombre de la acción a ejecutar.",
+    ),
+    carpeta: pathlib.Path | None = typer.Argument(
+        None,
+        help="Carpeta de origen; tiene prioridad sobre el origen del JSON.",
+    ),
+    simular: bool = typer.Option(
+        False,
+        "--simular",
+        help="Muestra lo que se haría sin modificar el disco.",
+    ),
+    si: bool = typer.Option(
+        False,
+        "--si",
+        help="Ejecuta sin pedir confirmación.",
+    ),
+) -> None:
+    """Ejecuta una acción de la configuración sobre una carpeta.
+
+    Con --simular solo se muestra lo que se haría: el disco no se toca.
+    Las acciones destructivas piden confirmación salvo con --simular o --si.
+    """
+    datos = _cargar_config(_ruta_config(ctx))
+    motor = Motor(datos)
+
+    # El motor no es interactivo: la confirmación se pide aquí, antes de
+    # ejecutar. Se reutiliza la fábrica Accion para saber si es destructiva.
+    if not simular and not si:
+        definicion = next(
+            (
+                entrada
+                for entrada in datos
+                if isinstance(entrada, dict) and entrada.get("nombre") == nombre
+            ),
+            None,
+        )
+        if definicion is not None and Accion.desde_config(definicion).destructiva:
+            typer.confirm(
+                f"La acción «{nombre}» es destructiva: ¿continuar?",
+                abort=True,
+            )
+
     try:
-        acciones = config.cargar(ruta)
-        errores = config.validar(acciones)
+        resultados = motor.ejecutar(nombre, carpeta, simular)
     except LectucliError as exc:
         consola_error.print(f"✘ {exc}", style="red", markup=False)
         raise typer.Exit(code=exc.codigo_salida) from None
+    except OSError as exc:
+        consola_error.print(
+            f"✘ No se pudo completar «{nombre}»: {exc}",
+            style="red",
+            markup=False,
+        )
+        raise typer.Exit(code=1) from None
 
-    if errores:
-        for error in errores:
-            consola_error.print(f"✘ {error}", style="red", markup=False)
-        raise typer.Exit(code=errores[0].codigo_salida)
+    if not resultados:
+        console.print(
+            f"Ningún fichero cumple el filtro de la acción «{nombre}»",
+            style="yellow",
+        )
+        return
 
-    console.print(f"✔ {len(acciones)} acciones válidas", style="green")
+    titulo = f"Resultado de «{nombre}»"
+    if simular:
+        titulo += " (simulación)"
+
+    tabla = Table(title=titulo)
+    tabla.add_column("Fichero")
+    tabla.add_column("Destino")
+    tabla.add_column("Estado")
+
+    colores = {"hecho": "green", "simulado": "cyan", "saltado": "yellow"}
+    for resultado in resultados:
+        destino = str(resultado.destino) if resultado.destino is not None else "—"
+        tabla.add_row(
+            escape(str(resultado.origen)),
+            escape(destino),
+            Text(
+                resultado.estado.value,
+                style=colores.get(resultado.estado.value, "white"),
+            ),
+        )
+
+    console.print(tabla)
+
+    hechos = sum(1 for r in resultados if r.estado == Estado.HECHO)
+    simulados = sum(1 for r in resultados if r.estado == Estado.SIMULADO)
+    saltados = sum(1 for r in resultados if r.estado == Estado.SALTADO)
+    console.print(
+        f"Resumen: {hechos} hechos, {simulados} simulados y {saltados} saltados",
+        style="bold",
+    )

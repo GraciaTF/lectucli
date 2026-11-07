@@ -172,3 +172,22 @@ Puedes utilizar archivos de prueba temporales, pero no modifiques acciones.json.
 
 Antes de modificar, explícame brevemente qué vas a corregir. Después implementa únicamente los cambios necesarios en los tres archivos acordados y resume las pruebas realizadas. 
 
+## Prompts relacionados con el motor
+### Correcciones al plan inicial
+//En el primer plan, me propone que accion sea una dataclass y mover, copiar, etc sean funciones. Por tanto, le pido que rehaga el plan conservando la arquitectura indicada en el doc del profesor:
+
+La propuesta tiene ideas interesantes, pero quiero que respetes la arquitectura indicada en el ejercicio.
+
+Necesito que revises el diseño teniendo en cuenta estos requisitos:
+
+1. `Accion` debe ser una clase base abstracta, no una dataclass.
+2. Debe tener los métodos `ejecutar(ficheros, simular)` y `aplicar(fichero, n, simular)`, siendo `aplicar` abstracto.
+3. Deben existir las subclases `Mover`, `Copiar`, `Renombrar` y `Borrar`, que implementarán su propio método `aplicar`.
+4. La fábrica debe ser `Accion.desde_config(dict)` y utilizar un registro de subclases, sin `if/elif` por tipo.
+5. `Resultado` debe contener `origen`, `destino` y `estado`, con los tres estados previstos: `hecho`, `simulado` y `saltado`.
+6. Debe existir una clase `Motor(acciones)` con los métodos `seleccionar(carpeta, filtro)` y `ejecutar(nombre, carpeta, simular)`.
+7. No quiero modificar `cli.py` ni `errores.py` en este paso. El alcance es crear `acciones.py` y `motor.py`.
+
+Vuelve a explicarme cómo organizarías estas dos clases y cómo garantizarías que `--simular` no modifica absolutamente nada del disco. No escribas código todavía. 
+
+//Tras esto, su propuesta se ajusta a lo solicitado y me pide que confirme 4 aspectos. Confirmo y paso a Build
