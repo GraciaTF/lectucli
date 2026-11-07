@@ -7,6 +7,14 @@
       "tipo": "copiar",
       "filtro": { "extensiones": [".pdf", ".docx", ".odt", ".txt"] },
       "destino": "~/lecturas"
+    },
+    {
+      "nombre": "mover-a-integracionsocial",
+      "descripcion": "Mueve documentos de la carpeta pendientes a la carpeta Integración Social",
+      "tipo": "mover",
+      "filtro": { "extensiones": [".pdf", ".docx", ".odt", ".txt"] },
+      "origen": "~/lecturas/pendientes",
+      "destino": "~/lecturas/Integración Social"
     }
   ]
 }
