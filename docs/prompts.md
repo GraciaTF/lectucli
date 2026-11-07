@@ -191,3 +191,59 @@ Necesito que revises el diseño teniendo en cuenta estos requisitos:
 Vuelve a explicarme cómo organizarías estas dos clases y cómo garantizarías que `--simular` no modifica absolutamente nada del disco. No escribas código todavía. 
 
 //Tras esto, su propuesta se ajusta a lo solicitado y me pide que confirme 4 aspectos. Confirmo y paso a Build
+
+## Prompts relacionados con segunda acción
+//Quiero que mi segunda acción sea mover las lecturas para organizarlas según los ciclos que imparto: Integración Social, PROMIG, Educación Infantil, Animación Sociocultural y turística y Dependencia, he empezado por crear el movimiento a integración social:
+
+
+Quiero añadir la acción: mover-a-integracionsocial "mueve documentos de la carpeta pendientes a la carpeta Integración Social"
+
+1. Carga la skill acciones-json.
+2. Propón primero la entrada JSON y espera mi visto bueno.
+3. Si el tipo ya existe, solo edita acciones.json. Si no, añade la clase en src/lectucli/acciones.py siguiendo el patrón de las demás.
+4. Termina ejecutando `uv run lectucli validar` y dime qué orden con --simular debo probar yo.
+
+Estado actual del repo:
+
+
+//Hago una corrección:
+Corrige las rutas:
+- origen: ~/lecturas/pendientes
+- destino: ~/lecturas/Integración Social
+
+Añade el filtro de extensiones .pdf, .docx, .odt y .txt.
+
+Mantén el tipo mover. Muéstrame el JSON actualizado y espera mi aprobación. No modifiques todavía ningún archivo. 
+
+//funciona
+
+## Prompts relacionados con el trabajo del subagente
+//He pedido al subagente la revisión de src/lectucli/motor.py y ha detectado algunos errores que no se estaban gestionando como deberían, además de que carpeta "" podría interpretarse como actual path, por lo que le pido que lo arregle:
+
+Usa el informe del subagente `revisor` sobre `src/lectucli/motor.py` y realiza únicamente estas dos correcciones:
+
+**1. Protección frente a carpetas vacías**
+- Evita que `carpeta = ""` se interprete como el directorio actual (`Path(".")`).
+- Si la carpeta recibida está vacía o no es válida, lanza un error controlado de `LectucliError`.
+- Comprueba que la protección también impide ejecutar acciones destructivas sobre el directorio actual por accidente.
+
+**2. Gestión de errores de permisos y operaciones de archivos**
+- Captura los `PermissionError` y `OSError` relevantes en las operaciones identificadas por el revisor:
+  - `iterdir()` en `seleccionar()`.
+  - `origen.is_dir()` en `ejecutar()`.
+  - `accion.ejecutar(...)` en `ejecutar()`.
+- Convierte esos errores en excepciones `LectucliError`, conservando mensajes claros en español y sin mostrar trazas de Python al usuario.
+
+**Restricciones:**
+- Modifica exclusivamente `src/lectucli/motor.py`.
+- Mantén la arquitectura actual y el patrón de diseño existente.
+- No cambies la CLI, el JSON de configuración ni otros archivos.
+- No introduzcas funcionalidades nuevas ni aproveches para hacer otras mejoras.
+- Respeta las normas de `AGENTS.md` y la skill del proyecto.
+- No ocultes errores inesperados con capturas demasiado generales.
+
+**Al terminar:**
+1. Indica exactamente qué has cambiado y por qué.
+2. Ejecuta las pruebas existentes relacionadas con el motor.
+3. Comprueba que una carpeta vacía no provoca operaciones sobre el directorio actual.
+4. Confirma que no has modificado ningún otro archivo.

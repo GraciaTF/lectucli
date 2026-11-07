@@ -17,6 +17,23 @@ from lectucli.acciones import Accion, Filtro, Resultado
 from lectucli.errores import LectucliError
 
 
+def _validar_carpeta(carpeta: pathlib.Path | str) -> None:
+    """Comprueba que la carpeta de trabajo no esté vacía ni sea la actual.
+
+    Un valor vacío («» o solo espacios) se convertiría en el directorio
+    actual (Path(".")) y una acción destructiva actuaría sobre los
+    ficheros desde los que se lanza la CLI. El directorio actual escrito
+    como «.» se descarta también porque, una vez convertido, ya no se
+    puede distinguir de un vacío.
+    """
+    texto = str(carpeta)
+    if not texto.strip() or texto == ".":
+        raise LectucliError(
+            "La carpeta de origen está vacía o es el directorio actual: "
+            "pasa una ruta concreta (por ejemplo, ~/lecturas)"
+        )
+
+
 class Motor:
     """Ejecuta las acciones de acciones.json sobre el disco."""
 
@@ -35,9 +52,20 @@ class Motor:
         (alfabético sin distinguir mayúsculas) para que el contador
         {n:03} dé el mismo número en la simulación que en la ejecución
         real.
+
+        Si la carpeta está vacía, es el directorio actual o no se puede
+        leer (permisos), lanza LectucliError.
         """
+        _validar_carpeta(carpeta)
+        try:
+            entradas = list(carpeta.iterdir())
+        except OSError as exc:
+            # Sin permisos o carpeta ilegible: error controlado.
+            raise LectucliError(
+                f"No se pudo leer la carpeta «{carpeta}»: {exc}"
+            ) from exc
         seleccionados: list[pathlib.Path] = []
-        for entrada in carpeta.iterdir():
+        for entrada in entradas:
             try:
                 if not entrada.is_file():
                     continue
@@ -63,6 +91,8 @@ class Motor:
         delegar en Accion.ejecutar().
 
         - Acción o carpeta inexistente: LectucliError.
+        - Carpeta vacía o directorio actual: LectucliError.
+        - Sin permisos para leer o escribir: LectucliError.
         - Si ningún fichero cumple el filtro: lista vacía.
         - simular=True: no se escribe nada en disco.
         """
@@ -88,6 +118,7 @@ class Motor:
 
         # La carpeta del CLI tiene prioridad sobre el origen de la config.
         if carpeta is not None:
+            _validar_carpeta(carpeta)
             origen = pathlib.Path(carpeta).expanduser()
         elif datos.get("origen"):
             origen = pathlib.Path(datos["origen"]).expanduser()
@@ -98,7 +129,14 @@ class Motor:
                 "acciones.json"
             )
 
-        if not origen.is_dir():
+        try:
+            es_carpeta = origen.is_dir()
+        except OSError as exc:
+            # Sin permisos para consultar la carpeta: error controlado.
+            raise LectucliError(
+                f"No se pudo comprobar la carpeta de origen «{origen}»: {exc}"
+            ) from exc
+        if not es_carpeta:
             raise LectucliError(
                 f"La carpeta de origen «{origen}» no existe o no es una carpeta"
             )
@@ -107,4 +145,11 @@ class Motor:
         if not ficheros:
             # Nada que hacer: no se considera un error.
             return []
-        return accion.ejecutar(ficheros, simular)
+        try:
+            return accion.ejecutar(ficheros, simular)
+        except OSError as exc:
+            # Permiso denegado, fichero bloqueado, disco lleno…: se
+            # traduce a un error de lectucli sin traza de Python.
+            raise LectucliError(
+                f"No se pudo ejecutar la acción «{nombre}»: {exc}"
+            ) from exc
