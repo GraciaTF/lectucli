@@ -21,6 +21,12 @@
       "descripcion": "Permite eliminar archivos seleccionados por la usuaria al ejecutar el comando",
       "tipo": "borrar",
       "confirmar": true
+    },
+    {
+      "nombre": "renombrar",
+      "descripcion": "Permite cambiar el nombre de archivos seleccionados por la usuaria al ejecutar el comando",
+      "tipo": "renombrar",
+      "plantilla": "{nombre}{ext}"
     }
   ]
 }

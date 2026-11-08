@@ -233,28 +233,61 @@ def ejecutar(
             "(se puede repetir para varios)."
         ),
     ),
+    nuevo_nombre: str | None = typer.Option(
+        None,
+        "--nuevo-nombre",
+        "-n",
+        help="Nombre nuevo que se aplicará con la acción renombrar.",
+    ),
 ) -> None:
     """Ejecuta una acción de la configuración sobre una carpeta.
 
     Con --simular solo se muestra lo que se haría: el disco no se toca.
     Las acciones destructivas piden confirmación salvo con --simular o --si.
     Con --fichero (repetible) solo se actúa sobre los ficheros indicados
-    por su nombre.
+    por su nombre. Con --nuevo-nombre se indica el nombre nuevo de la
+    acción renombrar: sustituye la plantilla del JSON.
     """
     datos = _cargar_config(_ruta_config(ctx))
     motor = Motor(datos)
 
+    # Definición de la acción pedida: hace falta para las comprobaciones
+    # previas, tanto en simulación como en ejecución real.
+    definicion = next(
+        (
+            entrada
+            for entrada in datos
+            if isinstance(entrada, dict) and entrada.get("nombre") == nombre
+        ),
+        None,
+    )
+
+    # La CLI conoce sus opciones: aquí se exigen los parámetros que
+    # «renombrar» necesita, para no renombrar nada si falta alguno.
+    # Sale con su código antes de llegar al motor.
+    if definicion is not None and definicion.get("tipo") == "renombrar":
+        try:
+            if not fichero:
+                raise LectucliError(
+                    "La acción «renombrar» requiere indicar el archivo con --fichero"
+                )
+            if len(fichero) > 1:
+                raise LectucliError(
+                    "La acción «renombrar» renombra un archivo cada vez: "
+                    "usa un solo --fichero"
+                )
+            if nuevo_nombre is None or not nuevo_nombre.strip():
+                raise LectucliError(
+                    "La acción «renombrar» requiere indicar el nombre nuevo "
+                    "con --nuevo-nombre"
+                )
+        except LectucliError as exc:
+            consola_error.print(f"✘ {exc}", style="red", markup=False)
+            raise typer.Exit(code=exc.codigo_salida) from None
+
     # El motor no es interactivo: la confirmación se pide aquí, antes de
     # ejecutar. Se reutiliza la fábrica Accion para saber si es destructiva.
     if not simular and not si:
-        definicion = next(
-            (
-                entrada
-                for entrada in datos
-                if isinstance(entrada, dict) and entrada.get("nombre") == nombre
-            ),
-            None,
-        )
         if definicion is not None and Accion.desde_config(definicion).destructiva:
             typer.confirm(
                 f"La acción «{nombre}» es destructiva: ¿continuar?",
@@ -262,7 +295,9 @@ def ejecutar(
             )
 
     try:
-        resultados = motor.ejecutar(nombre, carpeta, simular, ficheros=fichero)
+        resultados = motor.ejecutar(
+            nombre, carpeta, simular, ficheros=fichero, nuevo_nombre=nuevo_nombre
+        )
     except LectucliError as exc:
         consola_error.print(f"✘ {exc}", style="red", markup=False)
         raise typer.Exit(code=exc.codigo_salida) from None

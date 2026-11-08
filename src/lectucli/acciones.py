@@ -324,6 +324,9 @@ class Renombrar(Accion):
     """Renombra ficheros en su propia carpeta usando la plantilla."""
 
     destructiva = True
+    # Solo renombra archivos indicados con --fichero; cli.py lo exige
+    # antes con un mensaje claro, y el motor lo respeta también aquí.
+    requiere_ficheros = True
 
     def __init__(
         self,
@@ -366,6 +369,10 @@ class Renombrar(Accion):
         ):
             # Nombre inseguro: no debe permitir salir de la carpeta.
             return Resultado(fichero, None, Estado.SALTADO)
+        if not pathlib.Path(nuevo_nombre).suffix:
+            # Sin extensión: se conserva la original del fichero. El
+            # rstrip evita un punto suelto al final («informe.» -> «informe.txt»).
+            nuevo_nombre = nuevo_nombre.rstrip(".") + fichero.suffix
         destino = fichero.parent / nuevo_nombre
         if destino == fichero:
             # La plantilla no cambia el nombre: no hay nada que renombrar.

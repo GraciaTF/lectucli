@@ -83,6 +83,7 @@ class Motor:
         carpeta: pathlib.Path | None,
         simular: bool,
         ficheros: list[str] | None = None,
+        nuevo_nombre: str | None = None,
     ) -> list[Resultado]:
         """Busca la acción, selecciona sus ficheros y los ejecuta.
 
@@ -99,6 +100,8 @@ class Motor:
           si se pasan, solo se actúa sobre esos (intersección por nombre,
           además del filtro). Si la acción tiene requiere_ficheros y no
           se pasa ninguno, no se selecciona nada (lista vacía).
+        - nuevo_nombre: valor de --nuevo-nombre; si se pasa, sustituye la
+          plantilla de la acción para esta ejecución (no se concatena).
         - simular=True: no se escribe nada en disco.
         """
         datos = None
@@ -120,6 +123,13 @@ class Motor:
             )
 
         accion = Accion.desde_config(datos)
+
+        # El nombre nuevo de la CLI sustituye la plantilla del JSON (no
+        # se concatena). Se asigna a la instancia creada para ESTA
+        # ejecución: los datos de configuración no se tocan y la
+        # siguiente llamada crea otra acción desde el JSON original.
+        if nuevo_nombre:
+            accion.plantilla = nuevo_nombre
 
         # La carpeta del CLI tiene prioridad sobre el origen de la config.
         if carpeta is not None:

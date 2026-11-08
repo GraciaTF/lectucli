@@ -42,6 +42,19 @@ lectucli ejecutar borrar ~/lecturas/pendientes -f informe.txt -f notas.txt
 lectucli ejecutar borrar ~/lecturas/pendientes -f informe.txt --simular
 ```
 
+Con `--nuevo-nombre` (o `-n`) se indica el nombre que aplicará la acción
+`renombrar`: **sustituye** la plantilla del JSON, no se suma a ella. En esa
+acción son obligatorios `--nuevo-nombre` y `--fichero` con **un único
+archivo**; si falta alguno, lectucli avisa y no renombra nada. Si el nombre
+nuevo no lleva extensión se conserva la original; si lleva otra, se
+respeta. Como en el resto, nunca se sobrescribe: si el nombre ya existe se
+añaden los sufijos `(1)`, `(2)`…
+
+```bash
+# renombrar conservando la extensión (con --simular no se toca nada)
+lectucli ejecutar renombrar CARPETA -f "lectión año nº3.txt" -n "lectura final" --simular
+```
+
 
 ## Esquema de acciones.json ##
 
