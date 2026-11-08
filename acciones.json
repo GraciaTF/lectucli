@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "acciones": [
+    {
+      "nombre": "anyadir-lectura",
+      "descripcion": "Copia una lectura de otra carpeta a la carpeta ~/lecturas",
+      "tipo": "copiar",
+      "filtro": { "extensiones": [".pdf", ".docx", ".odt", ".txt"] },
+      "destino": "~/lecturas"
+    },
+    {
+      "nombre": "mover-a-integracionsocial",
+      "descripcion": "Mueve documentos de la carpeta pendientes a la carpeta Integración Social",
+      "tipo": "mover",
+      "filtro": { "extensiones": [".pdf", ".docx", ".odt", ".txt"] },
+      "origen": "~/lecturas/pendientes",
+      "destino": "~/lecturas/Integración Social"
+    },
+    {
+      "nombre": "borrar",
+      "descripcion": "Permite eliminar archivos seleccionados por la usuaria al ejecutar el comando",
+      "tipo": "borrar",
+      "confirmar": true
+    },
+    {
+      "nombre": "renombrar",
+      "descripcion": "Permite cambiar el nombre de archivos seleccionados por la usuaria al ejecutar el comando",
+      "tipo": "renombrar",
+      "plantilla": "{nombre}{ext}"
+    },
+    {
+      "nombre": "mover-a-educacioninfantil",
+      "descripcion": "Mueve documentos a la carpeta Educación Infantil",
+      "tipo": "mover",
+      "filtro": { "extensiones": [".pdf", ".docx", ".odt", ".txt"] },
+      "origen": "~/lecturas/pendientes",
+      "destino": "~/lecturas/Educación Infantil"
+    }
+  ]
+}

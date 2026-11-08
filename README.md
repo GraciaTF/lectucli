@@ -24,3 +24,64 @@ Facilitar la organización, búsqueda, creación y gestión de lecturas para tra
 8. **Plataformas:** Linux primero; también Windows y macOS.
 9. **Códigos de salida:** 0 bien · 1 fallo al ejecutar · 2 uso incorrecto · 3 configuración inválida.
 10. **Instalación:** `uv tool install --editable .` (lo completo en la semana 4).
+
+
+## Seleccionar ficheros con --fichero ##
+
+La opción `--fichero` (o `-f`) de `lectucli ejecutar` restringe la acción a
+los ficheros indicados **por su nombre**, sin tocar el resto de la carpeta.
+Se puede repetir para seleccionar varios ficheros a la vez. El filtro del
+JSON sigue aplicándose; en las acciones de tipo `borrar`, sin ningún
+`--fichero` no se selecciona nada (no se borra nada).
+
+```bash
+# borrar solo estos dos ficheros, con confirmación previa
+lectucli ejecutar borrar ~/lecturas/pendientes -f informe.txt -f notas.txt
+
+# ver qué se haría sin tocar el disco
+lectucli ejecutar borrar ~/lecturas/pendientes -f informe.txt --simular
+```
+
+Con `--nuevo-nombre` (o `-n`) se indica el nombre que aplicará la acción
+`renombrar`: **sustituye** la plantilla del JSON, no se suma a ella. En esa
+acción son obligatorios `--nuevo-nombre` y `--fichero` con **un único
+archivo**; si falta alguno, lectucli avisa y no renombra nada. Si el nombre
+nuevo no lleva extensión se conserva la original; si lleva otra, se
+respeta. Como en el resto, nunca se sobrescribe: si el nombre ya existe se
+añaden los sufijos `(1)`, `(2)`…
+
+```bash
+# renombrar conservando la extensión (con --simular no se toca nada)
+lectucli ejecutar renombrar CARPETA -f "lectión año nº3.txt" -n "lectura final" --simular
+```
+
+
+## Esquema de acciones.json ##
+
+acciones.json contiene la configuración de las acciones que puede ejecutar lectucli.
+
+| Campo | Descripción |
+|---|---|
+| `version` | Versión del esquema de configuración. |
+| `acciones` | Lista de acciones definidas. |
+| `nombre` | Nombre único de la acción. |
+| `descripcion` | Explicación de lo que hace la acción. |
+| `tipo` | Operación que realizará: mover, copiar, renombrar o borrar. |
+| `origen` | Carpeta de origen. Opcional si se proporciona al ejecutar la acción. |
+| `filtro` | Criterios para seleccionar los archivos. |
+| `destino` | Carpeta donde se copiarán o moverán los archivos. |
+| `plantilla` | Plantilla para generar nombres nuevos al renombrar. |
+| `confirmar` | Indica si se requiere confirmación antes de borrar. |
+
+
+Filtros disponibles:
+- extensiones: extensiones permitidas.
+- patron: expresión regular para filtrar nombres.
+- mas_antiguo_que_dias: antigüedad mínima en días.
+- mayor_que_mb: tamaño mínimo en MB.
+
+Plantillas de renombrado:
+- {fecha:%Y-%m-%d}: fecha de modificación.
+- {n:03}: contador con tres cifras.
+- {ext}: extensión original.
+- {nombre}: nombre original sin extensión.

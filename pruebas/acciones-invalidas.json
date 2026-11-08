@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "acciones": [
+    {
+      "nombre": "Mala",
+      "descripcion": "",
+      "tipo": "no-admitido",
+      "plantilla": "{n:05}",
+      "filtro": { "mayor_que_mb": NaN }
+    },
+    {
+      "nombre": "Mala",
+      "descripcion": "duplicada",
+      "tipo": "renombrar"
+    },
+    {
+      "nombre": "sin-destino",
+      "descripcion": "falta el destino",
+      "tipo": "copiar"
+    },
+    {
+      "nombre": "fecha-inventada",
+      "descripcion": "fecha a medida",
+      "tipo": "renombrar",
+      "plantilla": "lectura-{fecha:%d/%m/%Y}.{ext}"
+    },
+    {
+      "nombre": "hueco-incompleto",
+      "descripcion": "llaves sin cerrar",
+      "tipo": "renombrar",
+      "plantilla": "{nombre"
+    },
+    {
+      "nombre": "borrar-a",
+      "descripcion": "confirmar mal tipado",
+      "tipo": "borrar",
+      "confirmar": "si",
+      "filtro": { "mayor_que_mb": Infinity }
+    }
+  ]
+}

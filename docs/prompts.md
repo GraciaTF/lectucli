@@ -86,3 +86,164 @@ Cuando termines, muéstrame los cambios realizados y comprueba que `uv run lectu
 
 ### Qué aprendí
 Aprendí a distinguir entre el modo Plan y el modo Build de OpenCode, a revisar las solicitudes de permisos antes de aceptarlas y a comprobar los comandos para ver si respondían según los criterios de aceptación. También aprendí a leer y entender un archivo Python (un lenguaje que todavía no conozco demasiado) y a revisar el código generado por el agente en lugar de aceptarlo sin más.
+
+
+## Prompts para validar
+Carga la skill @acciones-json y lee el fichero @acciones.json.
+
+Quiero validar acciones.json ANTES de ejecutar nada.
+
+Propón una implementación para lectucli que incluya:
+
+- src/lectucli/errores.py con las clases LectucliError, ConfigError y AccionNoValida.
+- src/lectucli/config.py con una función cargar(ruta) -> list[dict].
+- La orden «lectucli validar» en src/lectucli/cli.py.
+
+La validación debe comprobar el fichero completo antes de permitir ejecutar acciones. Los errores deben identificar la acción, el campo y el motivo cuando corresponda.
+
+Ten en cuenta nuestro esquema: nombre, descripcion, tipo, origen opcional, filtro opcional, destino, plantilla y confirmar. Comprueba también nombres duplicados, tipos no admitidos, campos obligatorios según el tipo, filtros y expresiones regulares inválidas.
+
+El proyecto debe funcionar en Linux, Windows y macOS.
+
+No modifiques ningún fichero ni ejecutes cambios todavía. Primero dime qué ficheros crearías o modificarías, qué clases y funciones implementarías y qué casos de error detectarías. 
+
+### Solicito las siguientes modificaciones
+El plan está bastante bien, pero quiero revisar algunos puntos antes de aprobarlo:
+
+1. La validación no debe limitarse al comando «lectucli validar». También debe realizarse antes de ejecutar cualquier acción, para impedir que se toque el disco si acciones.json contiene errores.
+
+2. Para las acciones de tipo «borrar», el comportamiento debe ser el siguiente:
+   - Por defecto, siempre se pide confirmación antes de borrar.
+   - Si el usuario añade --si al comando de borrado, se elimina directamente sin pedir confirmación.
+   - No queremos que el campo «confirmar» sea obligatorio en acciones.json para conseguir este comportamiento. La confirmación es la opción predeterminada.
+   - Refleja esta regla en el diseño y explica cómo se implementaría.
+
+3. Para los nombres de las acciones, quiero permitir también números, además de letras minúsculas y guiones.
+
+4. Explica cómo combinarías la detección de varios errores con la clase AccionNoValida: queremos poder mostrar todos los errores encontrados, no solamente el primero.
+
+5. No añadas restricciones que no estén justificadas por nuestro esquema. Si alguna regla, como los valores mínimos de los filtros, necesita una decisión, indícalo en lugar de inventarla.
+
+Actualiza el plan, pero no modifiques ningún fichero ni escribas código todavía. 
+
+//Añado una puntualización y respondo a una pregunta suya:
+Vamos a cerrar las decisiones pendientes:
+
+1. El campo confirmar será opcional y, si aparece, deberá ser booleano. Tanto si vale true como si vale false, la acción borrar seguirá pidiendo confirmación. La única forma de omitirla será añadir --si expresamente al comando de ejecución.
+
+2. mas_antiguo_que_dias debe ser un número entero mayor que cero.
+
+3. mayor_que_mb debe ser un número mayor que cero.
+
+4. La lista extensiones debe contener al menos una extensión válida.
+
+Actualiza el plan con estas decisiones. No modifiques ficheros ni escribas código todavía. 
+
+// El resultado es el que pedimos a Build que construya.
+// Luego le pedimos:
+Carga la skill @acciones-json y revisa los tres archivos implementados: errores.py, config.py y cli.py.
+
+La estructura general está aprobada, pero antes de terminar necesito estos ajustes:
+
+1. Corrige los textos en español que tengan palabras pegadas o errores de espaciado en los mensajes, comentarios y ayudas.
+
+2. Revisa la validación de plantillas:
+   - Admitir exactamente `{nombre}`, `{ext}`, `{n:03}` y `{fecha:%Y-%m-%d}`.
+   - Rechazar formatos desconocidos o incompletos.
+   - No aceptar formatos de fecha o contador inventados.
+
+3. En `mayor_que_mb`, rechaza valores no finitos como NaN e infinito, además de los valores menores o iguales a cero. Mantén el rechazo de booleanos.
+
+4. Comprueba que los errores de estructura y de cada acción identifican claramente el campo y, cuando sea posible, la acción afectada.
+
+5. No cambies el comportamiento de `listar`, `version` ni otras partes que no estén relacionadas con esta tarea.
+
+6. No añadas dependencias. No modifiques acciones.json, README.md ni pyproject.toml.
+
+7. Ejecuta pruebas de:
+   - Validación correcta.
+   - JSON mal formado, mostrando línea y columna.
+   - Varias acciones inválidas, mostrando todos los errores.
+   - Código de salida 3 para errores de configuración.
+   - Ausencia de traceback.
+   - Mensajes en rojo y mensaje de éxito en verde.
+
+Puedes utilizar archivos de prueba temporales, pero no modifiques acciones.json.
+
+Antes de modificar, explícame brevemente qué vas a corregir. Después implementa únicamente los cambios necesarios en los tres archivos acordados y resume las pruebas realizadas. 
+
+## Prompts relacionados con el motor
+### Correcciones al plan inicial
+//En el primer plan, me propone que accion sea una dataclass y mover, copiar, etc sean funciones. Por tanto, le pido que rehaga el plan conservando la arquitectura indicada en el doc del profesor:
+
+La propuesta tiene ideas interesantes, pero quiero que respetes la arquitectura indicada en el ejercicio.
+
+Necesito que revises el diseño teniendo en cuenta estos requisitos:
+
+1. `Accion` debe ser una clase base abstracta, no una dataclass.
+2. Debe tener los métodos `ejecutar(ficheros, simular)` y `aplicar(fichero, n, simular)`, siendo `aplicar` abstracto.
+3. Deben existir las subclases `Mover`, `Copiar`, `Renombrar` y `Borrar`, que implementarán su propio método `aplicar`.
+4. La fábrica debe ser `Accion.desde_config(dict)` y utilizar un registro de subclases, sin `if/elif` por tipo.
+5. `Resultado` debe contener `origen`, `destino` y `estado`, con los tres estados previstos: `hecho`, `simulado` y `saltado`.
+6. Debe existir una clase `Motor(acciones)` con los métodos `seleccionar(carpeta, filtro)` y `ejecutar(nombre, carpeta, simular)`.
+7. No quiero modificar `cli.py` ni `errores.py` en este paso. El alcance es crear `acciones.py` y `motor.py`.
+
+Vuelve a explicarme cómo organizarías estas dos clases y cómo garantizarías que `--simular` no modifica absolutamente nada del disco. No escribas código todavía. 
+
+//Tras esto, su propuesta se ajusta a lo solicitado y me pide que confirme 4 aspectos. Confirmo y paso a Build
+
+## Prompts relacionados con segunda acción
+//Quiero que mi segunda acción sea mover las lecturas para organizarlas según los ciclos que imparto: Integración Social, PROMIG, Educación Infantil, Animación Sociocultural y turística y Dependencia, he empezado por crear el movimiento a integración social:
+
+
+Quiero añadir la acción: mover-a-integracionsocial "mueve documentos de la carpeta pendientes a la carpeta Integración Social"
+
+1. Carga la skill acciones-json.
+2. Propón primero la entrada JSON y espera mi visto bueno.
+3. Si el tipo ya existe, solo edita acciones.json. Si no, añade la clase en src/lectucli/acciones.py siguiendo el patrón de las demás.
+4. Termina ejecutando `uv run lectucli validar` y dime qué orden con --simular debo probar yo.
+
+Estado actual del repo:
+
+
+//Hago una corrección:
+Corrige las rutas:
+- origen: ~/lecturas/pendientes
+- destino: ~/lecturas/Integración Social
+
+Añade el filtro de extensiones .pdf, .docx, .odt y .txt.
+
+Mantén el tipo mover. Muéstrame el JSON actualizado y espera mi aprobación. No modifiques todavía ningún archivo. 
+
+//funciona
+
+## Prompts relacionados con el trabajo del subagente
+//He pedido al subagente la revisión de src/lectucli/motor.py y ha detectado algunos errores que no se estaban gestionando como deberían, además de que carpeta "" podría interpretarse como actual path, por lo que le pido que lo arregle:
+
+Usa el informe del subagente `revisor` sobre `src/lectucli/motor.py` y realiza únicamente estas dos correcciones:
+
+**1. Protección frente a carpetas vacías**
+- Evita que `carpeta = ""` se interprete como el directorio actual (`Path(".")`).
+- Si la carpeta recibida está vacía o no es válida, lanza un error controlado de `LectucliError`.
+- Comprueba que la protección también impide ejecutar acciones destructivas sobre el directorio actual por accidente.
+
+**2. Gestión de errores de permisos y operaciones de archivos**
+- Captura los `PermissionError` y `OSError` relevantes en las operaciones identificadas por el revisor:
+  - `iterdir()` en `seleccionar()`.
+  - `origen.is_dir()` en `ejecutar()`.
+  - `accion.ejecutar(...)` en `ejecutar()`.
+- Convierte esos errores en excepciones `LectucliError`, conservando mensajes claros en español y sin mostrar trazas de Python al usuario.
+
+**Restricciones:**
+- Modifica exclusivamente `src/lectucli/motor.py`.
+- Mantén la arquitectura actual y el patrón de diseño existente.
+- No cambies la CLI, el JSON de configuración ni otros archivos.
+- No introduzcas funcionalidades nuevas ni aproveches para hacer otras mejoras.
+- Respeta las normas de `AGENTS.md` y la skill del proyecto.
+- No ocultes errores inesperados con capturas demasiado generales.
+
+**Al terminar:**
+1. Indica exactamente qué has cambiado y por qué.
+2. Ejecuta las pruebas existentes relacionadas con el motor.
+3. Comprueba que una carpeta vacía no provoca operaciones sobre el directorio actual.
+4. Confirma que no has modificado ningún otro archivo.
