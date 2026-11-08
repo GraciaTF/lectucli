@@ -82,6 +82,7 @@ class Motor:
         nombre: str,
         carpeta: pathlib.Path | None,
         simular: bool,
+        ficheros: list[str] | None = None,
     ) -> list[Resultado]:
         """Busca la acción, selecciona sus ficheros y los ejecuta.
 
@@ -94,6 +95,10 @@ class Motor:
         - Carpeta vacía o directorio actual: LectucliError.
         - Sin permisos para leer o escribir: LectucliError.
         - Si ningún fichero cumple el filtro: lista vacía.
+        - ficheros: nombres concretos indicados en la CLI con --fichero;
+          si se pasan, solo se actúa sobre esos (intersección por nombre,
+          además del filtro). Si la acción tiene requiere_ficheros y no
+          se pasa ninguno, no se selecciona nada (lista vacía).
         - simular=True: no se escribe nada en disco.
         """
         datos = None
@@ -141,12 +146,28 @@ class Motor:
                 f"La carpeta de origen «{origen}» no existe o no es una carpeta"
             )
 
-        ficheros = self.seleccionar(origen, accion.filtro)
-        if not ficheros:
+        # Sin nombres explícitos, una acción que los exige no selecciona
+        # nada: ni siquiera se abre la carpeta (req. de seguridad). Va
+        # después de validar el origen para no cambiar los errores
+        # existentes de carpeta inexistente o vacía.
+        if accion.requiere_ficheros and not ficheros:
+            return []
+
+        seleccionados = self.seleccionar(origen, accion.filtro)
+        if ficheros:
+            # Intersección por nombre: solo los indicados con --fichero
+            # que además pasan el filtro del JSON. Se compara el nombre
+            # (no la ruta completa) y de forma exacta, para que el
+            # resultado sea el mismo en Linux, Windows y macOS.
+            pedidos = {pathlib.Path(valor).name for valor in ficheros}
+            seleccionados = [
+                ruta for ruta in seleccionados if ruta.name in pedidos
+            ]
+        if not seleccionados:
             # Nada que hacer: no se considera un error.
             return []
         try:
-            return accion.ejecutar(ficheros, simular)
+            return accion.ejecutar(seleccionados, simular)
         except OSError as exc:
             # Permiso denegado, fichero bloqueado, disco lleno…: se
             # traduce a un error de lectucli sin traza de Python.

@@ -26,6 +26,23 @@ Facilitar la organización, búsqueda, creación y gestión de lecturas para tra
 10. **Instalación:** `uv tool install --editable .` (lo completo en la semana 4).
 
 
+## Seleccionar ficheros con --fichero ##
+
+La opción `--fichero` (o `-f`) de `lectucli ejecutar` restringe la acción a
+los ficheros indicados **por su nombre**, sin tocar el resto de la carpeta.
+Se puede repetir para seleccionar varios ficheros a la vez. El filtro del
+JSON sigue aplicándose; en las acciones de tipo `borrar`, sin ningún
+`--fichero` no se selecciona nada (no se borra nada).
+
+```bash
+# borrar solo estos dos ficheros, con confirmación previa
+lectucli ejecutar borrar ~/lecturas/pendientes -f informe.txt -f notas.txt
+
+# ver qué se haría sin tocar el disco
+lectucli ejecutar borrar ~/lecturas/pendientes -f informe.txt --simular
+```
+
+
 ## Esquema de acciones.json ##
 
 acciones.json contiene la configuración de las acciones que puede ejecutar lectucli.

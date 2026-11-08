@@ -155,6 +155,10 @@ class Accion(abc.ABC):
     # modifica el disco con destructiva.
     tipo: str = ""
     destructiva: bool = False
+    # Si es True, el motor solo actúa sobre ficheros nombrados
+    # explícitamente desde la CLI (--fichero); sin ninguno, no selecciona
+    # nada. Evita que un filtro vacío borre la carpeta entera.
+    requiere_ficheros: bool = False
 
     @classmethod
     def registrar(cls, tipo: str) -> Callable[[type[Accion]], type[Accion]]:
@@ -382,6 +386,8 @@ class Borrar(Accion):
     """
 
     destructiva = True
+    # Borrar solo con nombres explícitos: sin --fichero no se borra nada.
+    requiere_ficheros = True
 
     def __init__(
         self,

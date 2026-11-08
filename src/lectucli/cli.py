@@ -224,11 +224,22 @@ def ejecutar(
         "--si",
         help="Ejecuta sin pedir confirmación.",
     ),
+    fichero: list[str] = typer.Option(
+        [],
+        "--fichero",
+        "-f",
+        help=(
+            "Nombre de un fichero concreto de la carpeta de origen "
+            "(se puede repetir para varios)."
+        ),
+    ),
 ) -> None:
     """Ejecuta una acción de la configuración sobre una carpeta.
 
     Con --simular solo se muestra lo que se haría: el disco no se toca.
     Las acciones destructivas piden confirmación salvo con --simular o --si.
+    Con --fichero (repetible) solo se actúa sobre los ficheros indicados
+    por su nombre.
     """
     datos = _cargar_config(_ruta_config(ctx))
     motor = Motor(datos)
@@ -251,7 +262,7 @@ def ejecutar(
             )
 
     try:
-        resultados = motor.ejecutar(nombre, carpeta, simular)
+        resultados = motor.ejecutar(nombre, carpeta, simular, ficheros=fichero)
     except LectucliError as exc:
         consola_error.print(f"✘ {exc}", style="red", markup=False)
         raise typer.Exit(code=exc.codigo_salida) from None
