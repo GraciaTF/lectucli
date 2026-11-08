@@ -27,6 +27,14 @@
       "descripcion": "Permite cambiar el nombre de archivos seleccionados por la usuaria al ejecutar el comando",
       "tipo": "renombrar",
       "plantilla": "{nombre}{ext}"
+    },
+    {
+      "nombre": "mover-a-educacioninfantil",
+      "descripcion": "Mueve documentos a la carpeta Educación Infantil",
+      "tipo": "mover",
+      "filtro": { "extensiones": [".pdf", ".docx", ".odt", ".txt"] },
+      "origen": "~/lecturas/pendientes",
+      "destino": "~/lecturas/Educación Infantil"
     }
   ]
 }
