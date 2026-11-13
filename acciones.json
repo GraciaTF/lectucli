@@ -35,6 +35,12 @@
       "filtro": { "extensiones": [".pdf", ".docx", ".odt", ".txt"] },
       "origen": "~/lecturas/pendientes",
       "destino": "~/lecturas/Educación Infantil"
+    },
+    {
+      "nombre": "resumir",
+      "descripcion": "Resume documentos con la IA del centro y guarda el resultado en un .resumen.md",
+      "tipo": "resumir",
+      "filtro": { "extensiones": [".txt", ".md", ".pdf"] }
     }
   ]
 }

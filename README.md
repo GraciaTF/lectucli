@@ -66,12 +66,14 @@ acciones.json contiene la configuración de las acciones que puede ejecutar lect
 | `acciones` | Lista de acciones definidas. |
 | `nombre` | Nombre único de la acción. |
 | `descripcion` | Explicación de lo que hace la acción. |
-| `tipo` | Operación que realizará: mover, copiar, renombrar o borrar. |
+| `tipo` | Operación que realizará: mover, copiar, renombrar, borrar o resumir. |
 | `origen` | Carpeta de origen. Opcional si se proporciona al ejecutar la acción. |
 | `filtro` | Criterios para seleccionar los archivos. |
 | `destino` | Carpeta donde se copiarán o moverán los archivos. |
 | `plantilla` | Plantilla para generar nombres nuevos al renombrar. |
 | `confirmar` | Indica si se requiere confirmación antes de borrar. |
+| `instrucciones` | Solo en tipos con IA: texto que se añade al mensaje de sistema (opcional). |
+| `max_caracteres` | Solo en tipos con IA: tope de caracteres del documento enviado (entre 500 y 50000; por defecto 12000). |
 
 
 Filtros disponibles:
@@ -144,3 +146,42 @@ CENTRO_IA_CA=
 Todos los problemas de la IA se convierten en `IANoDisponible`: se muestra un
 único mensaje en rojo (`✘ ...`) y la terminal sale con el código 4 **sin
 mostrar la traza del error** (traceback).
+
+
+## La acción resumir (IA) ##
+
+La acción de tipo `resumir` (en acciones.json se llama `resumir`) resume
+documentos con la IA del centro y guarda el resultado en un fichero
+`nombre.resumen.md`, junto al original o en la carpeta `destino` si la
+acción lo indica. Nunca sobrescribe: si el nombre ya existiera se añaden
+los sufijos `(1)`, `(2)`…
+
+- **Ficheros que lee:** `.txt`, `.md` (UTF-8) y `.pdf` (con pypdf).
+- **Ficheros ilegibles** (PDF sin texto, codificación rara, sin
+  extensión admitida): quedan como `SALTADO` con el motivo en la columna
+  «Detalle» y la ejecución **continúa** con los demás.
+- **Campos opcionales del JSON:** `instrucciones` (texto que se **añade**
+  al mensaje de sistema fijo `SISTEMA_RESUMIR`, nunca lo sustituye) y
+  `max_caracteres` (entre 500 y 50000, por defecto 12000).
+- **Seguridad:** el documento siempre va entre `<documento>` y
+  `</documento>` y se trata como contenido para resumir, nunca como
+  instrucciones para el modelo; el mensaje de sistema con esa regla se
+  envía siempre igual.
+
+### Simulación sin IA
+
+Con `--simular` **no se llama al proveedor de IA ni hace falta `.env`**:
+lectucli solo lee cada fichero y muestra en «Detalle» el presupuesto de
+caracteres que se enviaría (`presupuesto: N caracteres`).
+
+```bash
+# ver qué se resumiría y cuántos caracteres se enviarían, sin tocar nada
+uv run lectucli ejecutar resumir CARPETA --simular
+
+# resumir de verdad (necesita CENTRO_IA_URL y CENTRO_IA_KEY en .env)
+uv run lectucli ejecutar resumir CARPETA
+```
+
+Si falta la configuración de la IA, o el servidor falla (HTTP 401, 429,
+sin conexión…), lectucli muestra un único mensaje `✘ ...` y sale con el
+código 4 sin traza.

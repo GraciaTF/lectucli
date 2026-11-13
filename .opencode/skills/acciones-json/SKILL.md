@@ -15,11 +15,14 @@ description: Reglas del fichero acciones.json de la CLI lectucli (campos, tipos,
   - destino: carpeta de destino cuando corresponda.
   - plantilla: formato del nuevo nombre cuando corresponda
   - confirmar: indica si requiere confirmación cuando corresponda.
+  - instrucciones: solo en tipos con IA; texto que se AÑADE al mensaje de sistema (opcional).
+  - max_caracteres: solo en tipos con IA; entero entre 500 y 50000, por defecto 12000 (opcional; null o ausente = defecto).
 
 - Tipos:
   - mover y copiar (requieren destino).
   - renombrar (requiere plantilla).
   - borrar (requiere confirmación, salvo --si).
+  - resumir (IA; lee .txt/.md/.pdf y guarda nombre.resumen.md; destino opcional).
 
 - filtro opcional:
   - extensiones (lista de extensiones en minúsculas).
@@ -33,6 +36,8 @@ description: Reglas del fichero acciones.json de la CLI lectucli (campos, tipos,
 - Valida el JSON en config.py ANTES de ejecutar; errores con AccionNoValida(accion, campo, motivo).
 - pathlib y shutil; encoding="utf-8"; nunca shell=True; nunca sobrescribir (destino_libre).
 - Toda acción admite --simular y devuelve list[Resultado].
+- Las acciones con IA (necesita_ia) solo piden el proveedor cuando la ejecución NO es simulación; --simular no necesita .env.
+- Resultado admite un campo opcional «detalle» (último) con el motivo de un SALTADO o el presupuesto de caracteres.
 - Si añades un campo o un tipo nuevo, documéntalo en el README y en esta skill.
 - El proyecto debe funcionar en Linux, Windows y macOS.
 - Expande las rutas que contengan ~ para acceder al directorio personal del usuario.

@@ -250,7 +250,9 @@ def ejecutar(
     acción renombrar: sustituye la plantilla del JSON.
     """
     datos = _cargar_config(_ruta_config(ctx))
-    motor = Motor(datos)
+    # Se pasa la fábrica (sin llamarla): el proveedor de IA solo se
+    # crea si la acción elegida lo necesita y no es una simulación.
+    motor = Motor(datos, proveedor=ProveedorCentro.desde_entorno)
 
     # Definición de la acción pedida: hace falta para las comprobaciones
     # previas, tanto en simulación como en ejecución real.
@@ -321,22 +323,32 @@ def ejecutar(
     if simular:
         titulo += " (simulación)"
 
+    # La columna «Detalle» solo aparece si algún resultado la trae (p.
+    # ej. el presupuesto de caracteres o el motivo de un fichero
+    # saltado): así la tabla de las acciones existentes no cambia.
+    con_detalle = any(resultado.detalle for resultado in resultados)
+
     tabla = Table(title=titulo)
     tabla.add_column("Fichero")
     tabla.add_column("Destino")
     tabla.add_column("Estado")
+    if con_detalle:
+        tabla.add_column("Detalle")
 
     colores = {"hecho": "green", "simulado": "cyan", "saltado": "yellow"}
     for resultado in resultados:
         destino = str(resultado.destino) if resultado.destino is not None else "—"
-        tabla.add_row(
+        fila = [
             escape(str(resultado.origen)),
             escape(destino),
             Text(
                 resultado.estado.value,
                 style=colores.get(resultado.estado.value, "white"),
             ),
-        )
+        ]
+        if con_detalle:
+            fila.append(escape(resultado.detalle or ""))
+        tabla.add_row(*fila)
 
     console.print(tabla)
 

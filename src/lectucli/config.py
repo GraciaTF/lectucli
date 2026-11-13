@@ -16,6 +16,14 @@ from lectucli.errores import AccionNoValida, ConfigError
 
 VERSION_ESQUEMA = 1
 TIPOS_ADMITIDOS = ("mover", "copiar", "renombrar", "borrar")
+# Tipos que necesitan el proveedor de IA del centro.
+TIPOS_IA = ("resumir",)
+# Todos los tipos que se pueden escribir en acciones.json.
+TIPOS_TODOS = TIPOS_ADMITIDOS + TIPOS_IA
+
+# Límites del campo «max_caracteres» (documentos enviados a la IA).
+MAX_CARACTERES_MIN = 500
+MAX_CARACTERES_MAX = 50000
 
 RE_NOMBRE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 RE_EXTENSION = re.compile(r"^\.[a-z0-9]+$")
@@ -128,10 +136,10 @@ def _validar_accion(accion: dict, posicion: int, nombres: set[str]) -> list[Acci
     tipo = accion.get("tipo")
     if not isinstance(tipo, str) or not tipo:
         falla("tipo", "es obligatorio y debe ser un texto")
-    elif tipo not in TIPOS_ADMITIDOS:
+    elif tipo not in TIPOS_TODOS:
         falla(
             "tipo",
-            f"«{tipo}» no está admitido; los tipos válidos son: {', '.join(TIPOS_ADMITIDOS)}",
+            f"«{tipo}» no está admitido; los tipos válidos son: {', '.join(TIPOS_TODOS)}",
         )
 
     # campos comunes opcionales: solo se comprueba el tipo si aparecen
@@ -165,6 +173,40 @@ def _validar_accion(accion: dict, posicion: int, nombres: set[str]) -> list[Acci
             falla("filtro", "debe ser un objeto con los criterios de selección")
         else:
             _validar_filtro(filtro, falla)
+
+    # Campos propios de los tipos con IA. («categorias» se validará cuando
+    # exista la acción clasificar.)
+    if tipo not in TIPOS_IA:
+        # Aparecer en un tipo normal sería un error que se ignoraría en
+        # silencio: mejor avisar en la validación.
+        for campo in ("instrucciones", "max_caracteres"):
+            if campo in accion and accion[campo] is not None:
+                falla(
+                    campo,
+                    f"«{campo}» solo aplica a los tipos de IA "
+                    f"({', '.join(TIPOS_IA)})",
+                )
+    else:
+        if "instrucciones" in accion:
+            instrucciones = accion["instrucciones"]
+            if not isinstance(instrucciones, str) or not instrucciones.strip():
+                falla("instrucciones", "debe ser un texto no vacío")
+
+        # Ausente o null: se usa el valor por defecto al construir la acción.
+        if "max_caracteres" in accion and accion["max_caracteres"] is not None:
+            limite = accion["max_caracteres"]
+            if isinstance(limite, bool) or not isinstance(limite, int):
+                falla(
+                    "max_caracteres",
+                    f"debe ser un número entero entre {MAX_CARACTERES_MIN} "
+                    f"y {MAX_CARACTERES_MAX}",
+                )
+            elif not MAX_CARACTERES_MIN <= limite <= MAX_CARACTERES_MAX:
+                falla(
+                    "max_caracteres",
+                    f"debe estar entre {MAX_CARACTERES_MIN} y "
+                    f"{MAX_CARACTERES_MAX}; se ha encontrado «{limite}»",
+                )
 
     return errores
 

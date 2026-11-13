@@ -12,9 +12,11 @@ acciones de tipo «borrar» la pedirá cli.py antes de llamar aquí.
 from __future__ import annotations
 
 import pathlib
+from collections.abc import Callable
 
 from lectucli.acciones import Accion, Filtro, Resultado
 from lectucli.errores import LectucliError
+from lectucli.ia import ProveedorIA
 
 
 def _validar_carpeta(carpeta: pathlib.Path | str) -> None:
@@ -37,9 +39,19 @@ def _validar_carpeta(carpeta: pathlib.Path | str) -> None:
 class Motor:
     """Ejecuta las acciones de acciones.json sobre el disco."""
 
-    def __init__(self, acciones: list[dict]) -> None:
-        """Guarda las acciones ya cargadas y validadas con config."""
+    def __init__(
+        self,
+        acciones: list[dict],
+        proveedor: Callable[[], ProveedorIA] | None = None,
+    ) -> None:
+        """Guarda las acciones ya validadas y la fábrica del proveedor.
+
+        «proveedor» es una función que CREA el proveedor de IA cuando hace
+        falta: así una acción normal, una simulación o una carpeta sin
+        ficheros nunca necesitan configuración de IA ni tocan la red.
+        """
         self.acciones = list(acciones)
+        self.proveedor = proveedor
 
     @staticmethod
     def seleccionar(
@@ -176,6 +188,18 @@ class Motor:
         if not seleccionados:
             # Nada que hacer: no se considera un error.
             return []
+
+        # La IA solo hace falta cuando la acción se va a ejecutar de
+        # verdad: en simulación no se crea el proveedor, no se llama a
+        # ningún modelo y no se necesita configuración en .env.
+        if accion.necesita_ia and not simular:
+            if self.proveedor is None:
+                raise LectucliError(
+                    f"La acción «{nombre}» necesita IA y no hay proveedor "
+                    "de IA configurado"
+                )
+            accion.proveedor = self.proveedor()
+
         try:
             return accion.ejecutar(seleccionados, simular)
         except OSError as exc:
