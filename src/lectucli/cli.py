@@ -12,6 +12,7 @@ from rich.text import Text
 from lectucli import __version__, config
 from lectucli.acciones import Accion, Estado
 from lectucli.errores import LectucliError
+from lectucli.ia import ProveedorCentro
 from lectucli.motor import Motor
 
 app = typer.Typer(
@@ -345,4 +346,33 @@ def ejecutar(
     console.print(
         f"Resumen: {hechos} hechos, {simulados} simulados y {saltados} saltados",
         style="bold",
+    )
+
+
+@app.command()
+def comprobar_ia() -> None:
+    """Comprueba la conexión con el proveedor de IA del centro.
+
+    Muestra el servidor, el modelo y si hay clave configurada (nunca la
+    clave) y hace una pregunta mínima al modelo. Si la IA no está
+    disponible termina con código 4 y sin mostrar la traza del error.
+    """
+    try:
+        with ProveedorCentro.desde_entorno() as proveedor:
+            console.print(f"Servidor: {proveedor.url}")
+            console.print(f"Modelo: {proveedor.modelo}")
+            console.print("Clave: definida")
+            respuesta = proveedor.completar(
+                "Responde con una sola palabra.",
+                "Hola",
+                max_tokens=5,
+            )
+    except LectucliError as exc:
+        consola_error.print(f"✘ {exc}", style="red", markup=False)
+        raise typer.Exit(code=exc.codigo_salida) from None
+
+    console.print(f"Respuesta: {respuesta.texto}", style="green")
+    console.print(
+        f"Tokens: {respuesta.tokens_entrada} de entrada / "
+        f"{respuesta.tokens_salida} de salida · {respuesta.segundos:.2f} s"
     )

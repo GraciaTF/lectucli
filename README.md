@@ -22,7 +22,7 @@ Facilitar la organización, búsqueda, creación y gestión de lecturas para tra
 6. **Mis 3 acciones (borrador):** buscar, filtrar, organizar.
 7. **Nunca hará:** borrar sin preguntar ni tocar ficheros fuera de la carpeta que le indique.
 8. **Plataformas:** Linux primero; también Windows y macOS.
-9. **Códigos de salida:** 0 bien · 1 fallo al ejecutar · 2 uso incorrecto · 3 configuración inválida.
+9. **Códigos de salida:** 0 bien · 1 fallo al ejecutar · 2 uso incorrecto · 3 configuración inválida · 4 IA no disponible.
 10. **Instalación:** `uv tool install --editable .` (lo completo en la semana 4).
 
 
@@ -85,3 +85,62 @@ Plantillas de renombrado:
 - {n:03}: contador con tres cifras.
 - {ext}: extensión original.
 - {nombre}: nombre original sin extensión.
+
+
+## Comprobar la IA: comprobar-ia ##
+
+La orden `lectucli comprobar-ia` comprueba que lectucli puede hablar con el
+servidor de inteligencia artificial del centro. Muestra el servidor, el modelo
+y «Clave: definida» (**nunca muestra la clave**), hace una pregunta mínima al
+modelo con `max_tokens=5` y, si todo va bien, muestra la respuesta, los tokens
+de entrada y de salida y el tiempo empleado.
+
+**La conexión real con el servidor del centro está pendiente de
+configuración:** mientras no se indique la URL y la clave correctas en el
+fichero `.env`, la orden terminará con un mensaje `✘ ...` y el código de
+salida 4.
+
+```bash
+# comprueba la configuración y hace una pregunta mínima al modelo
+uv run lectucli comprobar-ia
+```
+
+### Variables de configuración (CENTRO_IA_*)
+
+Se leen del fichero `.env` de la carpeta de trabajo (se carga automáticamente
+antes de cada petición). **No se versionan ni se comparten**: la clave no
+aparece en pantalla ni en ningún mensaje de error.
+
+| Variable | Obligatoria | Descripción |
+|---|---|---|
+| `CENTRO_IA_URL` | Sí | URL base del servidor compatible con OpenAI; sin `/chat/completions`, que se añade solo. Debe empezar por `http://` o `https://`. |
+| `CENTRO_IA_KEY` | Sí | Clave de acceso. Se envía en la cabecera `Authorization: Bearer ...` y jamás se muestra. |
+| `CENTRO_IA_MODELO` | No | Nombre del modelo que se usará (`model` de la petición). Si no se indica, o está vacío, se usa `qwen3.8-flash-next` (el `MODELO_POR_DEFECTO` del proyecto). |
+| `CENTRO_IA_CA` | No | Ruta a un fichero `.crt`/`.pem` con el certificado de CA propio del centro. Si no está, se confía en las CA del sistema (certifi). Si la ruta no existe o el fichero no es un certificado válido, lectucli avisa y sale con el código 4. |
+
+Ejemplo mínimo de `.env` (sustituye los valores por los del centro; no los
+guardes en el repositorio):
+
+```
+CENTRO_IA_URL=
+CENTRO_IA_KEY=
+# opcional: si se omite se usa qwen3.8-flash-next
+CENTRO_IA_MODELO=
+# opcional: certificado .crt/.pem del centro
+CENTRO_IA_CA=
+```
+
+
+### Códigos de salida
+
+| Código | Significado |
+|---|---|
+| 0 | Todo ha ido bien. |
+| 1 | Fallo al ejecutar una acción. |
+| 2 | Uso incorrecto de la orden (faltan argumentos). |
+| 3 | Configuración inválida (`acciones.json` no cumple el esquema). |
+| 4 | IA no disponible: falta configuración, sin conexión o conexión rechazada, certificado no válido o ausente, tiempo de conexión o de respuesta agotado, HTTP 401, HTTP 429 o respuesta inesperada del servidor. |
+
+Todos los problemas de la IA se convierten en `IANoDisponible`: se muestra un
+único mensaje en rojo (`✘ ...`) y la terminal sale con el código 4 **sin
+mostrar la traza del error** (traceback).

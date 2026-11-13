@@ -1,7 +1,8 @@
 """Excepciones propias de lectucli.
 
 Cada error lleva un código de salida para que la terminal pueda distinguir un
-fallo de ejecución (1) de una configuración inválida (3).
+fallo de ejecución (1) de una configuración inválida (3) y de un problema con
+el proveedor de inteligencia artificial (4).
 """
 
 from __future__ import annotations
@@ -29,3 +30,10 @@ class AccionNoValida(ConfigError):
         self.campo = campo
         self.motivo = motivo
         super().__init__(f"Acción «{accion}», campo «{campo}»: {motivo}")
+
+
+class IANoDisponible(LectucliError):
+    """La IA del centro no se puede usar: falta configuración, red, certificado
+    o el servidor ha devuelto un error (401, 429, respuesta inesperada…)."""
+
+    codigo_salida = 4
