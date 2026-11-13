@@ -41,6 +41,23 @@
       "descripcion": "Resume documentos con la IA del centro y guarda el resultado en un .resumen.md",
       "tipo": "resumir",
       "filtro": { "extensiones": [".txt", ".md", ".pdf"] }
+    },
+    {
+      "nombre": "nombrar-escaneos",
+      "descripcion": "Propone con la IA un nombre claro para cada escaneo PDF y lo renombra en su carpeta",
+      "tipo": "renombrar-ia",
+      "filtro": { "extensiones": [".pdf"], "patron": "(?i)^(escaneo|scan|documento|descarga)" }
+    },
+    {
+      "nombre": "clasificar-lecturas",
+      "descripcion": "Clasifica con la IA cada lectura y la mueve físicamente a su carpeta de categoría",
+      "tipo": "clasificar",
+      "filtro": { "extensiones": [".pdf", ".txt", ".md", ".docx", ".odt"] },
+      "categorias": {
+        "educacioninfantil": "~/lecturas/Educación Infantil",
+        "integracionsocial": "~/lecturas/Integración Social",
+        "otros": "~/lecturas/otros"
+      }
     }
   ]
 }

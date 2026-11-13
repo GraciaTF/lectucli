@@ -66,11 +66,12 @@ acciones.json contiene la configuración de las acciones que puede ejecutar lect
 | `acciones` | Lista de acciones definidas. |
 | `nombre` | Nombre único de la acción. |
 | `descripcion` | Explicación de lo que hace la acción. |
-| `tipo` | Operación que realizará: mover, copiar, renombrar, borrar o resumir. |
+| `tipo` | Operación que realizará: mover, copiar, renombrar, borrar, resumir, renombrar-ia o clasificar. |
 | `origen` | Carpeta de origen. Opcional si se proporciona al ejecutar la acción. |
 | `filtro` | Criterios para seleccionar los archivos. |
-| `destino` | Carpeta donde se copiarán o moverán los archivos. |
-| `plantilla` | Plantilla para generar nombres nuevos al renombrar. |
+| `destino` | Carpeta donde se copiarán o moverán los archivos. No aplica a renombrar-ia ni a clasificar (ahí los destinos los define `categorias`). |
+| `plantilla` | Plantilla para generar nombres nuevos al renombrar. No aplica a renombrar-ia ni a clasificar (el nombre lo propone la IA). |
+| `categorias` | Solo en tipo clasificar (obligatorio ahí, prohibido en el resto): mapa de categorías, con el identificador que debe responder la IA como clave y la carpeta destino como valor. |
 | `confirmar` | Indica si se requiere confirmación antes de borrar. |
 | `instrucciones` | Solo en tipos con IA: texto que se añade al mensaje de sistema (opcional). |
 | `max_caracteres` | Solo en tipos con IA: tope de caracteres del documento enviado (entre 500 y 50000; por defecto 12000). |
@@ -185,3 +186,83 @@ uv run lectucli ejecutar resumir CARPETA
 Si falta la configuración de la IA, o el servidor falla (HTTP 401, 429,
 sin conexión…), lectucli muestra un único mensaje `✘ ...` y sale con el
 código 4 sin traza.
+
+
+## La acción nombrar-escaneos (IA) ##
+
+La acción de tipo `renombrar-ia` (en acciones.json se llama
+`nombrar-escaneos`) propone con la IA un nombre claro para cada escaneo
+PDF y lo renombra **en su propia carpeta** (sin `destino`: no mueve
+nada). Es destructiva, así que **pide confirmación antes** salvo con
+`--simular` o `--si`.
+
+- **Solo PDF:** el filtro del JSON limita a `.pdf` con el patrón
+  `(?i)^(escaneo|scan|documento|descarga)`, y el código vuelve a
+  comprobarlo: cualquier otro formato sale como `SALTADO` con el motivo
+  «solo se renombran ficheros PDF» aunque alguien ampliara el filtro.
+- **Procesa la carpeta entera** que cumpla el filtro (no exige
+  `--fichero`; si se indica, la selección se restringe a ese fichero).
+- **Nombre seguro (`a_nombre_seguro`), en este orden:** solo la primera
+  línea; se quita la extensión que añada el modelo; tildes y eñes fuera
+  (NFD); minúsculas; todo lo que no sea `a-z`, `0-9` ni `-` pasa a
+  guion; sin guiones repetidos ni en los extremos; tope de 60
+  caracteres; si queda vacío, el fichero queda `SALTADO` sin tocarse.
+  Después se le añade **la extensión original** del fichero.
+- **Nunca sobrescribe:** si el nombre libre ya existe se añaden los
+  sufijos `(1)`, `(2)`…; y si la IA propone exactamente el nombre que
+  ya tiene el fichero, sale `SALTADO` con «el nombre ya es correcto»
+  **sin** añadirle `(1)`.
+- **Ficheros ilegibles** (PDF sin texto, cifrado, vacío): `SALTADO` con
+  el motivo y la ejecución continúa con los demás.
+- **Seguridad:** mensaje de sistema fijo `SISTEMA_NOMBRAR` con la
+  cláusula anti-inyección; el `instrucciones` del JSON se **añade**,
+  nunca lo sustituye; el documento va entre `<documento>` y
+  `</documento>`.
+
+```bash
+# ver qué se haría, sin tocar nada y sin .env
+uv run lectucli ejecutar nombrar-escaneos CARPETA --simular
+
+# renombrar de verdad (necesita .env y confirmación, o bien --si)
+uv run lectucli ejecutar nombrar-escaneos CARPETA --si
+```
+
+
+## La acción clasificar-lecturas (IA) ##
+
+La acción de tipo `clasificar` (en acciones.json se llama
+`clasificar-lecturas`) pide a la IA una categoría para cada lectura y
+**la mueve físicamente** a la carpeta de esa categoría. Es destructiva:
+pide confirmación antes salvo con `--simular` o `--si`.
+
+- **Categorías en `categorias` (mapa id → carpeta):** el JSON trae
+  `educacioninfantil`, `integracionsocial` y `otros`, con los mismos
+  destinos que las acciones `mover-a-*`. La IA debe responder **solo**
+  el identificador; las carpetas las crea la acción solo en ejecución
+  real (con `--simular` no se crea ninguna).
+- **Respuesta inválida:** si la IA responde algo que no es un
+  identificador exacto del mapa (tras quitar comillas y pasar a
+  minúsculas), el fichero **no se mueve**: sale `SALTADO` con la
+  respuesta y las categorías válidas en «Detalle». Nunca se manda a
+  ciegas a «otros».
+- **Ya está en su categoría:** `SALTADO` con «ya está en su categoría»
+  y no se mueve nada.
+- **Ficheros que lee:** `.pdf`, `.txt`, `.md` (UTF-8), `.docx` (con
+  python-docx) y `.odt` (con odfpy). Los ilegibles (docx corrupto, sin
+  texto…) quedan `SALTADO` con el motivo y la ejecución continúa.
+- **Seguridad:** mensaje de sistema fijo `SISTEMA_CLASIFICAR` con la
+  cláusula anti-inyección, al que se **añaden** las categorías y el
+  `instrucciones` del JSON; el documento va entre `<documento>` y
+  `</documento>`.
+
+```bash
+# ver qué se enviaría y qué categorías hay, sin tocar nada y sin .env
+uv run lectucli ejecutar clasificar-lecturas CARPETA --simular
+
+# clasificar de verdad (necesita .env y confirmación, o bien --si)
+uv run lectucli ejecutar clasificar-lecturas CARPETA --si
+```
+
+En ambos casos, con `--simular` **no se llama al proveedor de IA ni hace
+falta `.env`**: solo se muestra en «Detalle» el presupuesto de
+caracteres que se enviaría.

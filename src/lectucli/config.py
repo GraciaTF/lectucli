@@ -17,7 +17,11 @@ from lectucli.errores import AccionNoValida, ConfigError
 VERSION_ESQUEMA = 1
 TIPOS_ADMITIDOS = ("mover", "copiar", "renombrar", "borrar")
 # Tipos que necesitan el proveedor de IA del centro.
-TIPOS_IA = ("resumir",)
+TIPOS_IA = ("resumir", "renombrar-ia", "clasificar")
+# Tipos nuevos que no usan «destino» ni «plantilla»: el destino lo da el
+# mapa «categorias» y el nombre lo propone la IA. Se rechazan en la
+# validación para que no se ignoren en silencio (evita carpetas paralelas).
+TIPOS_IA_SIN_DESTINO_NI_PLANTILLA = ("renombrar-ia", "clasificar")
 # Todos los tipos que se pueden escribir en acciones.json.
 TIPOS_TODOS = TIPOS_ADMITIDOS + TIPOS_IA
 
@@ -158,13 +162,26 @@ def _validar_accion(accion: dict, posicion: int, nombres: set[str]) -> list[Acci
         destino = accion["destino"]
         if not isinstance(destino, str) or not destino.strip():
             falla("destino", "debe ser una ruta de carpeta no vacía")
+        elif tipo in TIPOS_IA_SIN_DESTINO_NI_PLANTILLA:
+            falla(
+                "destino",
+                f"«destino» no aplica al tipo «{tipo}»: los destinos los "
+                "define el campo «categorias»",
+            )
 
     # plantilla: obligatoria al renombrar y con huecos admitidos
     if "plantilla" not in accion:
         if tipo == "renombrar":
             falla("plantilla", "es obligatoria para las acciones de tipo «renombrar»")
     else:
-        _validar_plantilla(accion, falla)
+        if tipo in TIPOS_IA_SIN_DESTINO_NI_PLANTILLA:
+            falla(
+                "plantilla",
+                f"«plantilla» no aplica al tipo «{tipo}»: el nombre lo "
+                "propone la usuaria o la IA",
+            )
+        else:
+            _validar_plantilla(accion, falla)
 
     # filtro: opcional, pero si aparece debe cumplir sus reglas
     if "filtro" in accion:
@@ -208,7 +225,42 @@ def _validar_accion(accion: dict, posicion: int, nombres: set[str]) -> list[Acci
                     f"{MAX_CARACTERES_MAX}; se ha encontrado «{limite}»",
                 )
 
+    # categorias: obligatoria en clasificar y prohibida en el resto.
+    if tipo == "clasificar":
+        if "categorias" not in accion:
+            falla("categorias", "es obligatoria para las acciones de tipo «clasificar»")
+        else:
+            _validar_categorias(accion["categorias"], falla)
+    elif "categorias" in accion:
+        falla("categorias", "«categorias» solo aplica a las acciones de tipo «clasificar»")
+
     return errores
+
+
+def _validar_categorias(categorias, falla) -> None:
+    """Comprueba el mapa «categorias» (id de categoría → carpeta destino).
+
+    Debe ser un objeto JSON no vacío: las claves son identificadores en
+    minúsculas con números y guiones (lo que la IA debe responder) y los
+    valores, rutas de carpeta no vacías. Un tipo que no sea clasificar ni
+    siquiera debe llegar aquí (ya lo avisó _validar_accion).
+    """
+    if not isinstance(categorias, dict) or not categorias:
+        falla("categorias", "debe ser un objeto con las categorías y sus carpetas")
+        return
+
+    for clave, carpeta in categorias.items():
+        if not isinstance(clave, str) or not RE_NOMBRE.match(clave):
+            falla(
+                f"categorias.{clave}",
+                "el identificador de la categoría solo admite minúsculas, "
+                "números y guiones (es lo que debe responder la IA)",
+            )
+        if not isinstance(carpeta, str) or not carpeta.strip():
+            falla(
+                f"categorias.{clave}",
+                "la carpeta de destino debe ser una ruta de texto no vacía",
+            )
 
 
 def _validar_plantilla(accion: dict, falla) -> None:
