@@ -247,3 +247,79 @@ Usa el informe del subagente `revisor` sobre `src/lectucli/motor.py` y realiza �
 2. Ejecuta las pruebas existentes relacionadas con el motor.
 3. Comprueba que una carpeta vacía no provoca operaciones sobre el directorio actual.
 4. Confirma que no has modificado ningún otro archivo.
+
+## Prompts relacionados con la acción borrar
+Quiero añadir la acción: Quiero añadir una acción genérica de borrado para lectucli.
+
+- **Nombre:** `borrar`
+- **Tipo:** `borrar`
+- **Descripción:** Permite eliminar archivos seleccionados por la usuaria al ejecutar el comando.
+- **Filtro:** Debe permitir seleccionar archivos de cualquier extensión, sin limitarse a un tipo concreto.
+
+Requisitos:
+1. Debo poder indicar la carpeta de origen al ejecutar la acción.
+2. Debo poder seleccionar qué archivo o archivos quiero borrar, por su nombre, sin tener que borrar toda la carpeta.
+3. Si no indico archivos concretos, no debe borrar nada por defecto.
+4. Sin `--si`, debe pedir confirmación antes de borrar.
+5. Si respondo `n`, no debe borrar nada y debe devolver un código de salida distinto de cero.
+6. Con `--si`, debe poder ejecutarse sin preguntar.
+7. Respeta la arquitectura y las convenciones actuales de lectucli.
+8. No modifiques las acciones existentes ni hagas borrados reales durante la implementación.
+9. Revisa si la CLI actual permite seleccionar archivos concretos. Si no lo permite, explica qué cambio mínimo hace falta antes de implementarlo.
+
+Primero analiza y propón el cambio. No escribas código hasta presentar el plan. 
+
+1. Carga la skill acciones-json.
+2. Propón primero la entrada JSON y espera mi visto bueno.
+3. Si el tipo ya existe, solo edita acciones.json. Si no, añade la clase en src/lectucli/acciones.py siguiendo el patrón de las demás.
+4. Termina ejecutando `uv run lectucli validar` y dime qué orden con --simular debo probar yo.
+
+Estado actual del repo:
+
+## Prompts relacionados con la acción renombrar
+
+Quiero añadir la acción: Quiero añadir una acción genérica de renombrado para lectucli.
+
+- **Nombre:** `renombrar`
+- **Tipo:** `renombrar`
+- **Descripción:** Permite cambiar el nombre de archivos seleccionados por la usuaria al ejecutar el comando.
+
+Requisitos:
+
+1. Debo poder indicar la carpeta de origen al ejecutar la acción.
+2. Debo poder seleccionar el archivo concreto por su nombre, utilizando la opción `--fichero` (o `-f`) que acabamos de implementar.
+3. Debo poder indicar el nombre nuevo que quiero asignarle.
+4. Debe funcionar con cualquier extensión y respetar los nombres con espacios, tildes y eñes.
+5. No debe sobrescribir archivos si ya existe otro con el nombre de destino. Debe aplicar la política de sufijos `(1)`, `(2)`, etc., ya implementada en el proyecto.
+6. La simulación `--simular` debe mostrar el nombre de destino previsto sin modificar ningún archivo.
+7. No debe alterar el comportamiento de las acciones existentes `borrar`, `mover` y `copiar`.
+8. Respeta la arquitectura actual de lectucli y la plantilla de `/nueva-accion`.
+9. No ejecutes renombrados reales durante la implementación.
+
+**Importante:** primero analiza cómo funciona actualmente la clase `Renombrar` y cómo se pasan los parámetros a las acciones. Comprueba si la CLI permite indicar el nombre nuevo. Si hace falta ampliar la CLI o el motor, propón el cambio mínimo.
+
+Primero presenta el diagnóstico y el plan de implementación. No modifiques archivos hasta que apruebe el plan. 
+
+1. Carga la skill acciones-json.
+2. Propón primero la entrada JSON y espera mi visto bueno.
+3. Si el tipo ya existe, solo edita acciones.json. Si no, añade la clase en src/lectucli/acciones.py siguiendo el patrón de las demás.
+4. Termina ejecutando `uv run lectucli validar` y dime qué orden con --simular debo probar yo.
+
+Estado actual del repo:
+
+## Prompt MCP
+//Le escribí:
+Usa context7: en httpx 0.28, ¿cómo le paso a httpx.post un certificado de CA propio (fichero .crt)? Responde en 4 líneas con un ejemplo.
+
+//Me respondió:
+En 0.28, verify=<ruta> está deprecado (avisa DeprecationWarning), así que crea un SSLContext con tu CA propia y pásalo en verify:
+import httpx, ssl
+
+ctx = ssl.create_default_context(cafile="mi_ca.crt")  # tu fichero .crt/.pem
+httpx.post("https://mi-servidor/api", verify=ctx)      # funciona igual con httpx.Client(verify=ctx)
+cafile acepta un .crt (PEM); si tu cert está en DER, conviértelo con openssl x509 -inform der -in mi_ca.crt -out mi_ca.pem.
+
+//Así pues, nos dice que en httpx 0.28 ya no es recomendable pasar directamente la ruta del certificado con
+verify="mi_ca.crt", y nos indica que la forma recomendada es crear primero un contexto SSL y pasar ese contexto al parámetro verify.
+Esta información servirá para implementar posteriormente la conexión segura de LectuCLI con el proveedor de IA.
+Context7 me trajo la documentación, pero tuve que elegir yo cómo aplicarla al proyecto. Todavía no he probado la conexión real con el servidor.
