@@ -62,32 +62,45 @@ acciones.json contiene la configuración de las acciones que puede ejecutar lect
 
 | Campo | Descripción |
 |---|---|
-| `version` | Versión del esquema de configuración. |
-| `acciones` | Lista de acciones definidas. |
-| `nombre` | Nombre único de la acción. |
-| `descripcion` | Explicación de lo que hace la acción. |
-| `tipo` | Operación que realizará: mover, copiar, renombrar, borrar, resumir, renombrar-ia o clasificar. |
-| `origen` | Carpeta de origen. Opcional si se proporciona al ejecutar la acción. |
-| `filtro` | Criterios para seleccionar los archivos. |
-| `destino` | Carpeta donde se copiarán o moverán los archivos. No aplica a renombrar-ia ni a clasificar (ahí los destinos los define `categorias`). |
-| `plantilla` | Plantilla para generar nombres nuevos al renombrar. No aplica a renombrar-ia ni a clasificar (el nombre lo propone la IA). |
-| `categorias` | Solo en tipo clasificar (obligatorio ahí, prohibido en el resto): mapa de categorías, con el identificador que debe responder la IA como clave y la carpeta destino como valor. |
-| `confirmar` | Indica si se requiere confirmación antes de borrar. |
-| `instrucciones` | Solo en tipos con IA: texto que se añade al mensaje de sistema (opcional). |
-| `max_caracteres` | Solo en tipos con IA: tope de caracteres del documento enviado (entre 500 y 50000; por defecto 12000). |
+| `version` | Versión del esquema de configuración; debe ser `1`. |
+| `acciones` | Lista de acciones definidas; no puede estar vacía. |
+| `nombre` | Nombre único de la acción: minúsculas, números y guiones (patrón `^[a-z0-9]+(?:-[a-z0-9]+)*$`), sin guiones al principio ni al final. |
+| `descripcion` | Explicación de lo que hace la acción; obligatoria y no vacía. |
+| `tipo` | Operación que realizará: mover, copiar, renombrar, borrar, resumir, renombrar-ia o clasificar. Obligatorio; un tipo no admitido es un error de configuración. |
+| `origen` | Carpeta de origen. Opcional si se proporciona al ejecutar la acción; si aparece, debe ser un texto no vacío. |
+| `filtro` | Criterios para seleccionar los archivos; si aparece, debe ser un objeto (ver «Filtros disponibles»). |
+| `destino` | Carpeta donde se copiarán o moverán los archivos. Obligatorio en mover y copiar. No aplica a renombrar-ia ni a clasificar (ahí los destinos los define `categorias`): ponerlo en esos tipos es un error. |
+| `plantilla` | Plantilla para generar nombres nuevos al renombrar. Obligatoria en renombrar; no aplica a renombrar-ia ni a clasificar (el nombre lo propone la IA): ponerla en esos tipos es un error. |
+| `categorias` | Solo en tipo clasificar (obligatorio ahí y no vacío, prohibido en el resto): mapa de categorías, con el identificador que debe responder la IA como clave (minúsculas, números y guiones) y la carpeta destino no vacía como valor. |
+| `confirmar` | Booleano opcional (`true`/`false`) que solo se valida en `config.py`; **no controla la confirmación**. La CLI pide confirmación a todas las acciones destructivas, salvo con `--simular` o `--si`. |
+| `instrucciones` | Solo en tipos con IA: texto no vacío que se añade al mensaje de sistema (opcional). Aparecer con valor en un tipo sin IA es un error. |
+| `max_caracteres` | Solo en tipos con IA: tope de caracteres del documento enviado (entero entre 500 y 50000; por defecto 12000; `null` o ausente = defecto). Aparecer con valor en un tipo sin IA es un error. |
 
 
-Filtros disponibles:
-- extensiones: extensiones permitidas.
-- patron: expresión regular para filtrar nombres.
-- mas_antiguo_que_dias: antigüedad mínima en días.
-- mayor_que_mb: tamaño mínimo en MB.
+Filtros disponibles (si `filtro` aparece, debe ser un objeto con criterios válidos):
+- extensiones: extensiones permitidas, en minúsculas y con punto (por ejemplo `.pdf`); la lista no puede estar vacía.
+- patron: expresión regular válida para filtrar nombres (si no compila, es un error).
+- mas_antiguo_que_dias: antigüedad mínima en días; entero mayor que cero.
+- mayor_que_mb: tamaño mínimo en MB; número mayor que cero y finito (ni `NaN` ni `inf`).
 
-Plantillas de renombrado:
+Plantillas de renombrado (solo se admiten estos cuatro huecos; cualquier otro hueco o unas llaves sin cerrar son un error de configuración):
 - {fecha:%Y-%m-%d}: fecha de modificación.
 - {n:03}: contador con tres cifras.
 - {ext}: extensión original.
 - {nombre}: nombre original sin extensión.
+
+
+## La columna IA de «lectucli acciones» ##
+
+`uv run lectucli acciones` muestra las acciones con las columnas **Nombre**,
+**Tipo**, **Descripción** y **IA**:
+
+- `sí` cuando la acción necesita el proveedor de IA del centro (`resumir`,
+  `renombrar-ia` y `clasificar`).
+- `—` cuando no lo necesita (`mover`, `copiar`, `renombrar` y `borrar`).
+
+El valor sale de la propiedad `necesita_ia` de la propia acción (creada con
+`Accion.desde_config()`), nunca de deducirlo por el nombre o la descripción.
 
 
 ## Comprobar la IA: comprobar-ia ##
@@ -100,8 +113,9 @@ de entrada y de salida y el tiempo empleado.
 
 **La conexión real con el servidor del centro está pendiente de
 configuración:** mientras no se indique la URL y la clave correctas en el
-fichero `.env`, la orden terminará con un mensaje `✘ ...` y el código de
-salida 4.
+fichero `.env`, la orden muestra el error en rojo (`✘ ...`), recuerda en una
+segunda línea que las acciones sin IA siguen funcionando y termina con el
+código de salida 4, sin traza.
 
 ```bash
 # comprueba la configuración y hace una pregunta mínima al modelo
@@ -110,9 +124,12 @@ uv run lectucli comprobar-ia
 
 ### Variables de configuración (CENTRO_IA_*)
 
-Se leen del fichero `.env` de la carpeta de trabajo (se carga automáticamente
-antes de cada petición). **No se versionan ni se comparten**: la clave no
-aparece en pantalla ni en ningún mensaje de error.
+Se leen del fichero `.env` de la carpeta de trabajo. El `.env` se carga **solo
+cuando hace falta**: cuando se ejecuta una acción con IA **sin `--simular`**
+o cuando se ejecuta `lectucli comprobar-ia`. Las acciones sin IA y las
+simulaciones no leen las variables `CENTRO_IA_*` ni abren conexiones.
+**No se versionan ni se comparten**: la clave no aparece en pantalla
+ni en ningún mensaje de error.
 
 | Variable | Obligatoria | Descripción |
 |---|---|---|
@@ -142,11 +159,51 @@ CENTRO_IA_CA=
 | 1 | Fallo al ejecutar una acción. |
 | 2 | Uso incorrecto de la orden (faltan argumentos). |
 | 3 | Configuración inválida (`acciones.json` no cumple el esquema). |
-| 4 | IA no disponible: falta configuración, sin conexión o conexión rechazada, certificado no válido o ausente, tiempo de conexión o de respuesta agotado, HTTP 401, HTTP 429 o respuesta inesperada del servidor. |
+| 4 | IA no disponible: faltan `CENTRO_IA_URL` o `CENTRO_IA_KEY` (o la URL no empieza por `http://` o `https://`), sin conexión o conexión rechazada, certificado no válido o ausente, tiempo de conexión o de respuesta agotado, HTTP 401 (clave rechazada), HTTP 429 o respuesta inesperada del servidor. |
 
-Todos los problemas de la IA se convierten en `IANoDisponible`: se muestra un
-único mensaje en rojo (`✘ ...`) y la terminal sale con el código 4 **sin
-mostrar la traza del error** (traceback).
+Todos los problemas de la IA se convierten en `IANoDisponible`: se muestra el
+error en rojo (`✘ ...`) y, en una segunda línea, el aviso
+`Las acciones sin IA siguen funcionando: mira cuáles son con «lectucli acciones».`
+La terminal sale con el código 4 **sin mostrar la traza del error**
+(traceback). El resto de errores conserva su tratamiento: 1 al ejecutar, 2 de
+uso incorrecto y 3 de configuración inválida.
+
+
+## Arquitectura de la IA: ProveedorIA y ProveedorCentro ##
+
+La capa de IA vive en `src/lectucli/ia.py` y se apoya en las excepciones de
+`src/lectucli/errores.py`:
+
+- **`ProveedorIA`** (clase abstracta): la interfaz común de cualquier
+  proveedor. Expone `completar(sistema, usuario, max_tokens=1000)` y devuelve
+  un `Respuesta` con `texto`, `tokens_entrada`, `tokens_salida` y `segundos`.
+  Es lo único que conoce `AccionIA`: las acciones no saben con qué servidor
+  hablan.
+- **`ProveedorCentro`** (subclase): habla con el servidor del centro por
+  httpx, con una API compatible con OpenAI (`POST {url}/chat/completions`),
+  la clave en la cabecera `Authorization: Bearer ...`, tiempos de espera de
+  **10 segundos para conectar y 120 segundos para la respuesta**, y el contexto
+  TLS (el CA de `CENTRO_IA_CA` si existe, o las CA del sistema). Se usa como
+  gestor de contexto (`with ProveedorCentro.desde_entorno() as proveedor`)
+  para cerrar las conexiones con `cerrar()`.
+- **`desde_entorno()`** es la fábrica que carga el `.env` y construye el
+  proveedor con las variables `CENTRO_IA_*`.
+
+**Creación perezosa del proveedor.** `lectucli ejecutar` no crea el
+proveedor: pasa su fábrica (`ProveedorCentro.desde_entorno`, sin llamarla) al
+motor, que solo la invoca cuando la acción elegida tiene `necesita_ia`, la
+ejecución **no** es una simulación y hay ficheros seleccionados. Por eso:
+
+- una acción sin IA funciona sin clave y sin conexión;
+- una acción con IA con `--simular` también funciona sin clave ni conexión, y
+  solo calcula e informa del presupuesto de caracteres que se enviaría;
+- `.env` y las variables `CENTRO_IA_*` solo se leen en una ejecución real de
+  una acción con IA.
+
+Cualquier fallo (falta de configuración, red, certificado, tiempos agotados o
+error HTTP) se convierte en `IANoDisponible`, con el tratamiento descrito
+más arriba en «Códigos de salida»: mensaje en rojo, segunda línea con el
+aviso y salida con el código 4.
 
 
 ## La acción resumir (IA) ##
@@ -171,9 +228,17 @@ los sufijos `(1)`, `(2)`…
 
 ### Simulación sin IA
 
-Con `--simular` **no se llama al proveedor de IA ni hace falta `.env`**:
-lectucli solo lee cada fichero y muestra en «Detalle» el presupuesto de
-caracteres que se enviaría (`presupuesto: N caracteres`).
+Con `--simular` **no se llama al proveedor de IA ni hace falta `.env`**: el
+proveedor no llega a crearse, así que no se leen las variables `CENTRO_IA_*`
+ni se abre ninguna conexión. En simulación (y también en una ejecución real),
+`leer_texto()` **carga el fichero completo en memoria** y devuelve como mucho
+`max_caracteres` (recortando al final, en todos los formatos: .txt, .md,
+.pdf, .docx y .odt). Ese texto es el que se usa para calcular el presupuesto
+que se muestra en «Detalle» (`presupuesto: N caracteres`) y, en una
+ejecución real, el que se envía al modelo (`N caracteres enviados`). La
+columna «Detalle» de la tabla de resultados
+aparece únicamente cuando algún resultado lleva información: en las acciones
+sin IA no se muestra.
 
 ```bash
 # ver qué se resumiría y cuántos caracteres se enviarían, sin tocar nada
@@ -184,8 +249,11 @@ uv run lectucli ejecutar resumir CARPETA
 ```
 
 Si falta la configuración de la IA, o el servidor falla (HTTP 401, 429,
-sin conexión…), lectucli muestra un único mensaje `✘ ...` y sale con el
-código 4 sin traza.
+sin conexión…), lectucli convierte el fallo en `IANoDisponible`: muestra el
+error en rojo (`✘ ...`), añade en una segunda línea
+`Las acciones sin IA siguen funcionando: mira cuáles son con «lectucli acciones».`
+y sale con el código 4 sin traza. En cambio, con `--simular` ningún fallo de
+IA puede aparecer: no se consulta `.env` ni se toca la red.
 
 
 ## La acción nombrar-escaneos (IA) ##
