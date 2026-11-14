@@ -11,7 +11,7 @@ from rich.text import Text
 
 from lectucli import __version__, config
 from lectucli.acciones import Accion, Estado
-from lectucli.errores import LectucliError
+from lectucli.errores import IANoDisponible, LectucliError
 from lectucli.ia import ProveedorCentro
 from lectucli.motor import Motor
 
@@ -61,6 +61,19 @@ def _tamano_legible(tamano_bytes: int) -> str:
     return f"{tamano_bytes:.1f} PB"
 
 
+def _ruta_legible(ruta: pathlib.Path) -> str:
+    """Ruta para mostrar en pantalla, con «~» si está en el directorio personal.
+
+    Solo cambia la presentación en la tabla: las rutas que usan las
+    operaciones de disco son las reales y no se tocan.
+    """
+    try:
+        relativa = ruta.relative_to(pathlib.Path.home())
+    except ValueError:
+        return str(ruta)
+    return str(pathlib.Path("~") / relativa)
+
+
 @app.callback()
 def principal(
     ctx: typer.Context,
@@ -101,6 +114,24 @@ def _cargar_config(ruta: pathlib.Path) -> list[dict]:
         raise typer.Exit(code=errores[0].codigo_salida)
 
     return acciones
+
+
+def _gestionar_error_ia(exc: IANoDisponible) -> None:
+    """Muestra un fallo de IA y sale con código 4, sin trazas.
+
+    Tratamiento único de IANoDisponible para todas las órdenes que
+    hablan con el proveedor (ejecutar y comprobar-ia): el error en
+    rojo, una segunda línea recordando que las acciones sin IA siguen
+    funcionando y la salida con el código de la propia excepción (4).
+    """
+    consola_error.print(f"✘ {exc}", style="red", markup=False, soft_wrap=True)
+    consola_error.print(
+        "Las acciones sin IA siguen funcionando: mira cuáles son con "
+        "«lectucli acciones».",
+        markup=False,
+        soft_wrap=True,
+    )
+    raise typer.Exit(code=exc.codigo_salida) from None
 
 
 @app.command()
@@ -193,12 +224,18 @@ def acciones(ctx: typer.Context) -> None:
     tabla.add_column("Nombre")
     tabla.add_column("Tipo")
     tabla.add_column("Descripción")
+    tabla.add_column("IA")
 
-    for accion in datos:
+    for entrada in datos:
+        # La columna IA sale de la propia Accion (necesita_ia), no del
+        # nombre ni de la descripción: así respeta la implementación
+        # actual y no hay que adivinar qué tipos usan IA.
+        accion = Accion.desde_config(entrada)
         tabla.add_row(
-            escape(str(accion["nombre"])),
-            escape(str(accion["tipo"])),
-            escape(str(accion["descripcion"])),
+            escape(str(entrada["nombre"])),
+            escape(str(entrada["tipo"])),
+            escape(str(entrada["descripcion"])),
+            "sí" if accion.necesita_ia else "—",
         )
 
     console.print(tabla)
@@ -301,6 +338,8 @@ def ejecutar(
         resultados = motor.ejecutar(
             nombre, carpeta, simular, ficheros=fichero, nuevo_nombre=nuevo_nombre
         )
+    except IANoDisponible as exc:
+        _gestionar_error_ia(exc)
     except LectucliError as exc:
         consola_error.print(f"✘ {exc}", style="red", markup=False)
         raise typer.Exit(code=exc.codigo_salida) from None
@@ -337,9 +376,13 @@ def ejecutar(
 
     colores = {"hecho": "green", "simulado": "cyan", "saltado": "yellow"}
     for resultado in resultados:
-        destino = str(resultado.destino) if resultado.destino is not None else "—"
+        destino = (
+            _ruta_legible(resultado.destino)
+            if resultado.destino is not None
+            else "—"
+        )
         fila = [
-            escape(str(resultado.origen)),
+            escape(_ruta_legible(resultado.origen)),
             escape(destino),
             Text(
                 resultado.estado.value,
@@ -379,6 +422,8 @@ def comprobar_ia() -> None:
                 "Hola",
                 max_tokens=5,
             )
+    except IANoDisponible as exc:
+        _gestionar_error_ia(exc)
     except LectucliError as exc:
         consola_error.print(f"✘ {exc}", style="red", markup=False)
         raise typer.Exit(code=exc.codigo_salida) from None
