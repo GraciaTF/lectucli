@@ -906,7 +906,9 @@ class Clasificar(AccionIA):
     (una sola fuente de verdad, sin estructuras paralelas). Es destructiva
     porque mueve ficheros: cli.py pide confirmación antes (salvo --simular
     o --si). Si la IA responde algo que no es una categoría válida, el
-    fichero NO se mueve: sale como SALTADO con el motivo en «detalle».
+    fichero se mueve a «sin-clasificar» (la carpeta del mapa si el JSON
+    la declara; si no, una subcarpeta junto al fichero) con el motivo en
+    «detalle», en vez de quedarse donde estaba.
     """
 
     destructiva = True
@@ -985,17 +987,22 @@ class Clasificar(AccionIA):
         respuesta = self.preguntar(texto)
         categoria = _categoria_valida(respuesta.texto, self.categorias)
         if categoria is None:
-            # Respuesta inválida: el fichero NO se mueve.
+            # Respuesta fuera de la lista: el fichero se rescata en
+            # «sin-clasificar» (la carpeta del mapa si el JSON la define;
+            # si no, una subcarpeta junto al propio fichero) en lugar de
+            # dejarse donde está.
             contestacion = _primera_linea(respuesta.texto)
-            return Resultado(
-                fichero,
-                None,
-                Estado.SALTADO,
-                f"la IA respondió «{contestacion}»; categorías válidas: "
-                f"{', '.join(self.categorias)}",
+            carpeta = self.categorias.get("sin-clasificar") or (
+                fichero.parent / "sin-clasificar"
             )
+            motivo = (
+                f"la IA respondió «{contestacion}»; categorías válidas: "
+                f"{', '.join(self.categorias)}"
+            )
+        else:
+            carpeta = self.categorias[categoria]
+            motivo = f"categoría: {categoria}"
 
-        carpeta = self.categorias[categoria]
         if carpeta.resolve() == fichero.parent.resolve():
             # Ya está en su categoría: no se mueve nada.
             return Resultado(
@@ -1015,7 +1022,7 @@ class Clasificar(AccionIA):
             fichero,
             destino,
             Estado.HECHO,
-            f"categoría: {categoria}",
+            motivo,
         )
 
 
@@ -1033,7 +1040,8 @@ def _categoria_valida(
 
     Solo se acepta una coincidencia EXACTA con una clave del mapa después
     de normalizar (1ª línea, comillas fuera, minúsculas): mover un
-    fichero a ciegas es peor que saltarlo y explicar el motivo.
+    fichero a una carpeta que la docente no pidió es peor que mandarlo a
+    sin-clasificar y explicar el motivo.
     """
     categoria = _primera_linea(respuesta).lower()
     if categoria in categorias:

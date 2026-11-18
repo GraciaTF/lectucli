@@ -310,9 +310,12 @@ pide confirmación antes salvo con `--simular` o `--si`.
   real (con `--simular` no se crea ninguna).
 - **Respuesta inválida:** si la IA responde algo que no es un
   identificador exacto del mapa (tras quitar comillas y pasar a
-  minúsculas), el fichero **no se mueve**: sale `SALTADO` con la
-  respuesta y las categorías válidas en «Detalle». Nunca se manda a
-  ciegas a «otros».
+  minúsculas), el fichero **se mueve a `sin-clasificar`** y en «Detalle»
+  quedan la respuesta y las categorías válidas. Si el JSON define una
+  categoría `sin-clasificar` se usa su carpeta; si no, se crea una
+  subcarpeta `sin-clasificar` junto al propio fichero. Nunca se manda a
+  ciegas a «otros» y, como en el resto de movimientos, si el nombre ya
+  está ocupado entra con el sufijo `(1)` en lugar de sobrescribir.
 - **Ya está en su categoría:** `SALTADO` con «ya está en su categoría»
   y no se mueve nada.
 - **Ficheros que lee:** `.pdf`, `.txt`, `.md` (UTF-8), `.docx` (con
