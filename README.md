@@ -29,20 +29,108 @@ lectucli version
 ```
 
 ## Primeros pasos
-1. Copia el fichero `acciones.json` del repositorio y adapta las rutas a tus carpetas.
-2. Comprueba que la configuración es correcta:
-   ```bash
-   lectucli validar
-   ```
-3. Consulta las acciones disponibles:
-   ```bash
-   lectucli acciones
-   ```
-4. Prueba una acción sin modificar los archivos:
-   ```bash
-   lectucli ejecutar NOMBRE_DE_TU_ACCION --simular
-   ```
 
+### 1. Preparar la configuración
+
+Descarga el fichero [`acciones.json`](https://raw.githubusercontent.com/GraciaTF/lectucli/v1.0.0/acciones.json) y guárdalo en la carpeta desde la que vas a trabajar.
+
+Este fichero define las acciones disponibles, sus tipos, carpetas de origen y destino y filtros aplicables.
+
+**Importante:** adapta las rutas de `origen`, `destino` y `categorias` a las carpetas de tu equipo antes de utilizar las acciones.
+
+Por defecto, LectuCLI busca `acciones.json` en la carpeta actual. Si quieres utilizar otro fichero, puedes indicarlo mediante `--config`.
+
+### 2. Comprobar la configuración
+
+```bash
+lectucli validar
+```
+
+Comprueba que el fichero JSON tiene una estructura válida. Si encuentra errores, muestra todos ellos.
+
+### 3. Consultar las acciones disponibles
+
+```bash
+lectucli acciones
+```
+
+Muestra las acciones definidas en `acciones.json`, su tipo, descripción y si necesitan inteligencia artificial.
+
+### 4. Consultar el contenido de una carpeta
+
+```bash
+lectucli listar
+lectucli listar ~/lecturas/pendientes
+```
+
+El primer comando muestra la carpeta actual. El segundo muestra la carpeta indicada.
+
+### 5. Ejecutar una acción
+
+La sintaxis general es:
+
+```bash
+lectucli ejecutar NOMBRE_DE_LA_ACCION [CARPETA] [OPCIONES]
+```
+
+La carpeta es opcional. Si se indica, tiene prioridad sobre el origen definido en `acciones.json`.
+
+**Opciones disponibles:**
+
+| Opción | Función |
+|---|---|
+| `--simular` | Muestra qué se haría sin modificar archivos ni conectar con la IA. |
+| `--si` | Ejecuta sin solicitar confirmación. |
+| `--fichero` o `-f` | Selecciona un archivo concreto por su nombre. Se puede repetir. |
+| `--nuevo-nombre` o `-n` | Indica el nuevo nombre para la acción `renombrar`. |
+
+### 6. Ejemplos de ejecución
+
+**Mover un archivo concreto:**
+
+```bash
+lectucli ejecutar mover-a-educacioninfantil --fichero lectura.pdf --simular
+```
+
+**Mover varios archivos concretos:**
+
+```bash
+lectucli ejecutar mover-a-educacioninfantil \
+  -f lectura1.pdf \
+  -f lectura2.docx \
+  --simular
+```
+
+**Renombrar un archivo:**
+
+```bash
+lectucli ejecutar renombrar ~/lecturas/pendientes \
+  -f lectura.pdf \
+  -n "lectura-final" \
+  --simular
+```
+
+**Eliminar archivos seleccionados:**
+
+```bash
+lectucli ejecutar borrar ~/lecturas/pendientes \
+  -f antiguo.txt \
+  --simular
+```
+
+Cuando hayas comprobado el resultado de una simulación, puedes repetir el comando sin `--simular` para realizar la operación.
+
+**Importante:** las acciones destructivas solicitan confirmación antes de ejecutarse. La opción `--si` omite esa confirmación.
+
+Las acciones de tipo `mover` y `copiar` utilizan el destino definido en `acciones.json`. Para cambiarlo, modifica el campo `destino` de la acción correspondiente.
+
+### 7. Comprobar la conexión con la IA
+
+```bash
+lectucli comprobar-ia
+```
+
+Comprueba la conexión con el proveedor de IA del centro. Para utilizar las acciones que necesitan IA es necesario configurar las variables correspondientes en el fichero `.env`.
 
 
 ## Seleccionar ficheros con --fichero ##
