@@ -4,6 +4,15 @@ Todos los cambios notables de LectuCLI se recogen en este fichero.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es/1.1.0/)
 y las versiones siguen [SemVer](https://semver.org/lang/es/).
 
+## [1.0.1] - 2026-11-19
+
+### Mejorado
+
+- Ampliada la documentación del README con instrucciones detalladas de instalación, configuración y primeros pasos.
+- Documentados todos los comandos de la CLI y sus opciones.
+- Añadidos ejemplos de ejecución, selección de archivos concretos y simulación de acciones.
+- Explicada la configuración de los destinos de las acciones en `acciones.json`.
+
 ## [1.0.0] - 2026-11-19
 
 Primera versión completa de LectuCLI: organiza, resume y clasifica las
