@@ -23,7 +23,7 @@ jobs:
       # Copia el código del repositorio al runner (siempre antes que setup-uv).
       - uses: actions/checkout@v5
       # Instala uv y fija Python 3.12 como UV_PYTHON; sin caché ni nada más.
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.12"
           enable-cache: false
