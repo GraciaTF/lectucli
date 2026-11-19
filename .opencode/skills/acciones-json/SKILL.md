@@ -25,7 +25,7 @@ description: Reglas del fichero acciones.json de la CLI lectucli (campos, tipos,
   - borrar (destructiva: pide confirmación salvo --simular o --si; sin --fichero no selecciona nada, así que nunca borra la carpeta entera).
   - resumir (IA; lee .txt/.md/.pdf y guarda nombre.resumen.md junto al original o en «destino» si la acción lo indica; destino opcional; no es destructiva).
   - renombrar-ia (IA; solo .pdf, sin destino ni plantilla; renombra en su carpeta con a_nombre_seguro(); destructiva: confirma salvo --simular o --si; no exige --fichero, procesa la carpeta filtrada).
-  - clasificar (IA; lee .pdf/.txt/.md/.docx/.odt; mapa «categorias» obligatorio; mueve físicamente; destructiva: confirma salvo --simular o --si; respuesta de la IA que no coincida exactamente con una categoría → SALTADO sin mover).
+  - clasificar (IA; lee .pdf/.txt/.md/.docx/.odt; mapa «categorias» obligatorio; mueve físicamente; destructiva: confirma salvo --simular o --si; respuesta de la IA que no coincida exactamente con una categoría → el fichero se mueve a «sin-clasificar» —la carpeta de la clave «sin-clasificar» del mapa si existe, o una subcarpeta junto al fichero si no— con la respuesta y las categorías válidas en «detalle», nunca sobrescribiendo).
 
 - filtro opcional (debe ser un objeto):
   - extensiones: lista de extensiones en minúsculas y con punto (patrón `^\.[a-z0-9]+$`); lista vacía → error.
@@ -48,11 +48,11 @@ description: Reglas del fichero acciones.json de la CLI lectucli (campos, tipos,
 ## Reglas de IA (todas las acciones con IA)
 - Mensaje de sistema FIJO por subclase en «sistema_base» (SISTEMA_RESUMIR, SISTEMA_NOMBRAR, SISTEMA_CLASIFICAR) con cláusula anti-inyección; el campo «instrucciones» y el mapa de categorías se AÑADEN, nunca lo sustituyen. AccionIA.__init__ lanza ConfigError si sistema_base está vacío.
 - El documento siempre va entre <documento> y </documento>, neutralizando etiquetas incrustadas.
-- Estados: HECHO (movido/renombrado), SIMULADO (--simular: sin proveedor, sin .env, sin mkdir), SALTADO con motivo en «detalle» (fichero ilegible, IA sin respuesta válida, ya correcto…).
+- Estados: HECHO (movido/renombrado), SIMULADO (--simular: sin proveedor, sin .env, sin mkdir), SALTADO con motivo en «detalle» (fichero ilegible, ya correcto…). Una respuesta de IA fuera de la lista en clasificar NO es SALTADO: mueve a «sin-clasificar» (ver «Tipos»).
 - Nombrar IA compara el nombre propuesto con el actual ANTES de primer_nombre_libre(): si coincide → SALTADO «el nombre ya es correcto» sin «(1)».
 - presupuesto(texto) = min(len(texto), max_caracteres): las acciones con IA leen con leer_texto(fichero, max_caracteres), así que el texto ya viene recortado y el presupuesto es en la práctica lo que se envía al modelo.
 - Tope de leer_texto(): devuelve como mucho «tope» caracteres en TODOS los formatos (.txt, .md, .pdf, .docx y .odt), con texto[:tope] al final. Pero el fichero completo se carga entero en memoria ANTES de recortar (el .txt/.md íntegros, todas las páginas del PDF, el .docx y el .odt enteros): max_caracteres limita lo que se manda al modelo, no lo que se lee del disco.
-- Detalle del presupuesto: en simulación, «presupuesto: N caracteres»; en ejecución real, «N caracteres enviados» (resumir y renombrar-ia) y «categoría: ...» en clasificar.
+- Detalle del presupuesto: en simulación, «presupuesto: N caracteres»; en ejecución real, «N caracteres enviados» (resumir y renombrar-ia), «categoría: ...» en clasificar (o «la IA respondió «X»; categorías válidas: ...» cuando el rescate va a sin-clasificar).
 - max_tokens de la respuesta por subclase: 1000 en resumir (el valor base de AccionIA), 200 en renombrar-ia y 100 en clasificar.
 
 ## Capa de IA (ia.py): ProveedorIA y ProveedorCentro

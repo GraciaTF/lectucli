@@ -682,3 +682,152 @@ Aplica estos cambios:
 No rehagas secciones que ya estén correctas. No modifiques ningún otro archivo. No hagas commit.
 
 Al terminar, muestra el diff completo de README.md y confirma qué archivos has modificado. 
+## Sesión 4
+
+### Prompt fixture
+Carga la skill acciones-json y lee @src/lectucli/config.py, @src/lectucli/motor.py,
+@src/lectucli/acciones.py y @src/lectucli/ia.py.
+Quiero pruebas con pytest. Antes de escribir nada, dime:
+1. qué fixtures pondrías en tests/conftest.py para que NINGUNA prueba toque mis
+   carpetas de verdad ni llame al servidor de IA;
+2. qué casos feos probarías de config, de las acciones y de la capa IA;
+3. qué códigos de salida probarías desde fuera con CliRunner.
+No escribas código todavía. 
+
+//Con la propuesta, voy a Build y le pido:
+
+Hazlo según el plan aprobado, empezando solo por el andamiaje:
+
+- uv add --dev pytest
+- tests/conftest.py con:
+  · aislado (autouse): monkeypatch.chdir(tmp_path), HOME y USERPROFILE
+    apuntando a tmp_path y fuera CENTRO_IA_URL, CENTRO_IA_KEY y CENTRO_IA_CA.
+  · protección para impedir llamadas reales a la red.
+  · descargas: tmp_path/Descargas con factura.pdf,
+    apuntes de redes.docx, FOTO1.JPG, cumpleaños 2.png
+    y viejo.tmp con 40 días (os.utime).
+  · escribir_config: escribe un acciones.json y devuelve su ruta.
+  · ProveedorFalso(ProveedorIA) y la fixture modelo_falso.
+
+Usa siempre los nombres y rutas reales del proyecto LectuCLI.
+No modifiques todavía los módulos de src/lectucli ni escribas tests.
+
+Termina ejecutando: uv run pytest  
+
+### Prompt pruebas de configuración y acciones
+Ahora tests/test_config.py y tests/test_acciones.py. Reglas:
+- Cada prueba, un nombre que diga qué comprueba: test_nunca_sobrescribe, no test_3.
+- Casos feos de config con @pytest.mark.parametrize e ids legibles.
+- Ni una ruta real: todo en tmp_path o con las fixtures.
+- Mover, --simular (ni siquiera mkdir), nunca sobrescribir, .JPG en mayúsculas,
+  borrar solo lo viejo y renombrar con plantilla.
+No cambies src/. Si una prueba falla, NO la «arregles»: dime por qué falla.
+Termina con: uv run pytest -v
+
+### Prompt test IA adaptado:
+Ahora crea `tests/test_ia.py`, sin red y sin gastar un token.
+
+Reglas:
+- `a_nombre_seguro` con `pytest.mark.parametrize`:
+  - Tildes y signos: `"Tema 3: ¡Linux & Bash!"` → `"tema-3-linux-bash"`.
+  - `"../../etc/passwd"` → `"etc-passwd"`.
+  - Un nombre que el modelo devuelve con `".pdf"` → sin extensión.
+  - Respuesta vacía → `""`.
+- Resumir con `modelo_falso`: escribe el `.md` y la pregunta lleva `<documento>`.
+- `simular=True` no pregunta al modelo (`falso.peticiones` vacía).
+- Una categoría que no está en la lista va a `sin-clasificar`.
+- Sin clave → `IANoDisponible`.
+- Con `http://127.0.0.1:9/v1` → error «No llego».
+
+Adapta todos los imports al paquete `lectucli`, nunca `tareas`.
+
+Utiliza las fixtures existentes en `tests/conftest.py`. El doble de IA registra las llamadas en `peticiones`, no en `preguntas`.
+
+No dupliques fixtures ni modifiques `conftest.py`.
+No cambies `src/`. Si una prueba falla, no cambies las expectativas para hacerla pasar: explica por qué falla.
+
+Termina ejecutando:
+
+`uv run pytest -v`
+
+//en la respuesta, una prueba no pasa. Detecta que con IA, cuando clasifica y la categoría no está entre las admitidas, salta en lugar de dejar en sin clasificar
+Vamos a implementar la regla del ejercicio que falta.
+
+**Regla:** si la IA devuelve una categoría que no está entre las categorías admitidas, el archivo debe moverse a la carpeta `sin-clasificar`, en lugar de devolver SALTADO.
+
+Antes de modificar:
+1. Inspecciona `Clasificar.aplicar()`, `_categoria_valida()` y cómo se construyen actualmente las rutas de destino.
+2. Comprueba cómo se configuran las categorías y sus carpetas.
+3. Identifica la modificación mínima y segura.
+
+Implementación:
+- Mantén el comportamiento actual para las categorías válidas.
+- Si la respuesta de la IA no coincide con ninguna categoría válida, mueve el archivo a `sin-clasificar`.
+- No sobrescribas archivos existentes: reutiliza el mecanismo actual de `primer_nombre_libre()`.
+- Respeta `simular=True`: no crees carpetas ni muevas archivos.
+- No crees estructuras de carpetas paralelas.
+- Actualiza la prueba fallida para comprobar el nuevo comportamiento.
+- Añade las pruebas necesarias para comprobar que no se sobrescribe y que la simulación sigue sin modificar nada.
+- Actualiza la documentación del proyecto que describa esta regla.
+
+No cambies otras acciones ni refactorices código ajeno a este comportamiento.
+
+Al terminar, ejecuta `uv run pytest -v` y explica qué archivos has modificado y por qué.
+
+### Prompts GitHub Actions
+Crea .github/workflows/pruebas.yml: en cada push y pull_request, una matriz con
+ubuntu-latest, windows-latest y macos-latest (fail-fast: false), actions/checkout,
+astral-sh/setup-uv con Python 3.12 y «uv run pytest -v». Nada más: ni caché ni
+publicar nada. Explícame cada línea en un comentario corto antes de crearlo.
+
+### Prompt para crear el script de revisar
+Crea el archivo scripts/revisar.sh siguiendo el script del profesor.:
+
+Script del profesor:
+
+#!/usr/bin/env bash
+// # Revisa lo que vas a commitear con el subagente revisor (solo lectura), sin abrir la TUI.
+// # Uso: git add … && scripts/revisar.sh      (sale con 0 si el revisor dice OK)
+set -euo pipefail
+if git diff --staged --quiet; then
+  echo "No hay nada preparado: haz git add primero." >&2
+  exit 1
+fi
+revision=$(git diff --staged | timeout 180 opencode run --agent revisor \
+  "Revisa este diff (te llega por la entrada estándar) con tus normas. Acaba con una línea: VEREDICTO: OK o VEREDICTO: CAMBIAR.")
+echo "$revision"
+grep -q "^VEREDICTO: OK" <<< "$revision"
+
+Requisitos:
+- Usa #!/usr/bin/env bash y set -euo pipefail.
+- Comprueba que hay cambios preparados con git diff --staged --quiet.
+- Si no hay cambios preparados, muestra un mensaje y termina con código 1.
+- Envía git diff --staged a opencode run --agent revisor mediante la entrada estándar.
+- Usa timeout 180.
+- Pide al agente que termine su respuesta con VEREDICTO: OK o VEREDICTO: CAMBIAR.
+- Muestra la respuesta y termina con código 0 si el veredicto es OK, o 1 en caso contrario.
+- No uses --auto ni amplíes permisos.
+- Adapta cualquier referencia al proyecto para que use lectucli, no tareas.
+Antes de crear el archivo, explícame brevemente cada línea y señala cualquier posible problema de compatibilidad con Git Bash en Windows. 
+
+
+### Prompts para crear CHANGELOG
+Genera un borrador de la sección 1.0.0 del CHANGELOG.md
+de LectuCLI utilizando todos los commits del historial de Git.
+
+Sigue el formato Keep a Changelog, escribe en español y
+organiza los cambios en:
+- Añadido
+- Cambiado
+- Arreglado
+
+El contenido debe estar dirigido a las personas que utilizan
+LectuCLI, no a desarrolladores.
+
+Guarda el resultado en:
+docs/changelog-borrador.md
+
+No modifiques ningún otro archivo.
+Antes de guardar, muéstrame el contenido que vas a escribir.7
+
+// Audito el resultado y cambio dos cosas: el --simular y --si no estaban bien acotados, lo modifico; y de cambiado elimino la parte relativa a permisos.

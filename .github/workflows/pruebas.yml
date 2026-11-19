@@ -1,0 +1,31 @@
+# Pruebas de lectucli en los tres sistemas operativos que soporta.
+name: pruebas
+
+# Se lanza en cada push y en cada pull request (sin filtrar ramas).
+on:
+  push:
+  pull_request:
+
+jobs:
+  pruebas:
+    # Cada tarea corre en el sistema que indique la matriz de abajo.
+    runs-on: ${{ matrix.sistema }}
+    strategy:
+      # Si falla un sistema, los otros dos siguen en vez de cancelarse.
+      fail-fast: false
+      matrix:
+        # Una tarea por sistema: Linux, Windows y macOS.
+        sistema:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+    steps:
+      # Copia el código del repositorio al runner (siempre antes que setup-uv).
+      - uses: actions/checkout@v5
+      # Instala uv y fija Python 3.12 como UV_PYTHON; sin caché ni nada más.
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: false
+      # Crea el .venv desde uv.lock (grupo dev incluido) y ejecuta la suite.
+      - run: uv run pytest -v
