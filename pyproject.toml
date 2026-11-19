@@ -1,6 +1,6 @@
 [project]
 name = "lectucli"
-version = "0.1.0"
+version = "1.0.0"
 description = "Gestiona y organiza lecturas para actividades de aula desde la terminal"
 readme = "README.md"
 authors = [
